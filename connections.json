@@ -1,0 +1,93 @@
+{
+  "hub": "Chatlippytm.ai.Bots",
+  "owner": "lippytm",
+  "description": "Connection HQ — central registry of all lippytm repositories and bot platforms",
+  "repositories": [
+    {
+      "name": "Chatlippytm.ai.Bots",
+      "url": "https://github.com/lippytm/Chatlippytm.ai.Bots",
+      "description": "Connection HQ — AI Hub for Building Business of businesses",
+      "language": null,
+      "category": "hub",
+      "tags": ["hub", "chatgpt", "bots", "manychat", "botbuilders"]
+    },
+    {
+      "name": "lippytm.ai",
+      "url": "https://github.com/lippytm/lippytm.ai",
+      "description": "A AI Web3AI connection Hub with Gist, Git, GitLab, GitHub and all repositories",
+      "language": null,
+      "category": "ai-platform",
+      "tags": ["web3", "ai", "hub", "git"]
+    },
+    {
+      "name": "OpenClaw-lippytm.AI-",
+      "url": "https://github.com/lippytm/OpenClaw-lippytm.AI-",
+      "description": "Personal AI Assistant Creation Networking Platform",
+      "language": null,
+      "category": "ai-assistant",
+      "tags": ["ai", "assistant", "networking"]
+    },
+    {
+      "name": "Web3AI",
+      "url": "https://github.com/lippytm/Web3AI",
+      "description": "Web3 + AI integration platform",
+      "language": "Python",
+      "category": "ai-platform",
+      "tags": ["web3", "ai", "python", "blockchain"]
+    },
+    {
+      "name": "AI-Time-Machines",
+      "url": "https://github.com/lippytm/AI-Time-Machines",
+      "description": "Adding AI Agents to everything with Time Machines",
+      "language": "JavaScript",
+      "category": "ai-agents",
+      "tags": ["ai", "agents", "time-machines", "javascript"]
+    },
+    {
+      "name": "Time-Machines-Builders-",
+      "url": "https://github.com/lippytm/Time-Machines-Builders-",
+      "description": "AI automation — Earn while you Learn to Become a Better Programmer and Blockchain Developer",
+      "language": "TypeScript",
+      "category": "ai-agents",
+      "tags": ["ai", "automation", "blockchain", "typescript", "time-machines"]
+    },
+    {
+      "name": "Transparency-Logic-Time-Machine-Bots-",
+      "url": "https://github.com/lippytm/Transparency-Logic-Time-Machine-Bots-",
+      "description": "The Grand United Fields of Theories",
+      "language": "TypeScript",
+      "category": "research",
+      "tags": ["theory", "transparency", "logic", "typescript"]
+    },
+    {
+      "name": "gatsby-starter-blog",
+      "url": "https://github.com/lippytm/gatsby-starter-blog",
+      "description": "Gatsby blog platform",
+      "language": "JavaScript",
+      "category": "publishing",
+      "tags": ["gatsby", "blog", "javascript"]
+    }
+  ],
+  "bot_platforms": [
+    {
+      "name": "ManyChat",
+      "url": "https://manychat.com",
+      "description": "Conversational bot flows"
+    },
+    {
+      "name": "BotBuilders.com",
+      "url": "https://botbuilders.com",
+      "description": "Bot development and deployment"
+    },
+    {
+      "name": "ChatGPT API",
+      "url": "https://platform.openai.com",
+      "description": "AI-powered responses via OpenAI"
+    },
+    {
+      "name": "lippytm.AI",
+      "url": "https://github.com/lippytm/lippytm.ai",
+      "description": "Custom AI assistant platform"
+    }
+  ]
+}
