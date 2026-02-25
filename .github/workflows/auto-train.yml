@@ -1,0 +1,86 @@
+name: AI Swarm – Auto Train
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    # Run every Monday at 02:00 UTC
+    - cron: "0 2 * * 1"
+  workflow_dispatch:
+    inputs:
+      repos:
+        description: "Comma-separated owner/repo targets (leave blank to use config)"
+        required: false
+        default: ""
+      submit_fine_tune:
+        description: "Submit fine-tune job to OpenAI when threshold is met"
+        required: false
+        default: "false"
+
+jobs:
+  auto-train:
+    name: Collect Training Data & Auto-Train
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: read
+      pull-requests: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Resolve target repos
+        id: repos
+        run: |
+          INPUT="${{ github.event.inputs.repos }}"
+          if [ -z "$INPUT" ]; then
+            # Extract targets from config.yaml
+            REPOS=$(python - <<'EOF'
+          import yaml, sys
+          with open("config/config.yaml") as f:
+              cfg = yaml.safe_load(f)
+          targets = cfg.get("repositories", {}).get("targets", [])
+          # Always include the current repo
+          current = "${{ github.repository }}"
+          if current not in targets:
+              targets.insert(0, current)
+          print(",".join(targets))
+          EOF
+            )
+          else
+            REPOS="$INPUT"
+          fi
+          echo "repos=$REPOS" >> "$GITHUB_OUTPUT"
+
+      - name: Run auto-training pipeline
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SUBMIT_FLAG=""
+          if [ "${{ github.event.inputs.submit_fine_tune }}" = "true" ]; then
+            SUBMIT_FLAG="--submit"
+          fi
+          python main.py train \
+            --repos "${{ steps.repos.outputs.repos }}" \
+            $SUBMIT_FLAG
+
+      - name: Upload training artefacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: training-data-${{ github.run_number }}
+          path: |
+            training/data/
+            training/reports/
+          retention-days: 90
+          if-no-files-found: warn

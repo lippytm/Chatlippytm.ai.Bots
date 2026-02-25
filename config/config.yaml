@@ -1,0 +1,56 @@
+# Swarm & Agent configuration
+swarm:
+  max_agents: 10
+  concurrency: 4
+  task_timeout: 300           # seconds per agent task
+  retry_attempts: 3
+  heartbeat_interval: 30      # seconds between agent health checks
+
+agents:
+  default_model: gpt-4o
+  temperature: 0.2
+  max_tokens: 4096
+  max_iterations: 15
+  verbose: false
+  tools:
+    - code_analysis
+    - repo_scanner
+    - issue_creator
+    - pr_reviewer
+    - ci_trigger
+    - test_runner
+    - dependency_auditor
+    - security_scanner
+
+training:
+  model: gpt-4o
+  auto_train_on_push: true
+  training_data_path: training/data
+  fine_tune_threshold: 100    # min examples before fine-tuning
+  evaluation_split: 0.2
+
+repositories:
+  # Add GitHub repos the swarm should manage
+  # Format: owner/repo
+  targets: []
+
+pipelines:
+  - name: code_review
+    trigger: pull_request
+    agents:
+      - pr_reviewer
+      - security_scanner
+  - name: dependency_audit
+    trigger: schedule
+    cron: "0 2 * * 1"        # every Monday at 2 AM
+    agents:
+      - dependency_auditor
+  - name: issue_triage
+    trigger: issues
+    agents:
+      - issue_triager
+  - name: auto_train
+    trigger: push
+    branch: main
+    agents:
+      - trainer
