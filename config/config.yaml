@@ -1,0 +1,54 @@
+# Global runtime configuration for Chatlippytm.ai.Bots
+# -------------------------------------------------------
+# Modify this file to enable/disable modules, set AI
+# provider credentials, and tune runtime behavior.
+
+app:
+  name: "Chatlippytm.ai.Bots"
+  version: "1.0.0"
+  environment: "development"   # development | staging | production
+  log_level: "INFO"            # DEBUG | INFO | WARNING | ERROR
+
+# AI provider settings
+ai:
+  default_provider: "openai"   # openai | anthropic | huggingface | local
+  providers:
+    openai:
+      model: "gpt-4o-mini"
+      max_tokens: 1024
+      temperature: 0.7
+      # api_key: set via environment variable OPENAI_API_KEY
+    anthropic:
+      model: "claude-3-haiku-20240307"
+      max_tokens: 1024
+      # api_key: set via environment variable ANTHROPIC_API_KEY
+    huggingface:
+      model: "mistralai/Mistral-7B-Instruct-v0.2"
+      # api_key: set via environment variable HF_API_KEY
+    local:
+      endpoint: "http://localhost:11434/api/generate"
+      model: "llama3"
+
+# Module toggles
+modules:
+  python:
+    enabled: true
+    entry_point: "modules/python/ai_integration.py"
+  javascript:
+    enabled: true
+    entry_point: "modules/javascript/ai_integration.js"
+  java:
+    enabled: true
+    entry_point: "modules/java/src/main/java/ai/AiIntegration.java"
+  blockchain:
+    enabled: false   # Placeholder — not yet fully implemented
+    entry_point: "modules/blockchain/"
+
+# Shared utilities
+shared:
+  config_loader: "shared/utils/config_loader.py"
+
+# Extensions registry (see extensions.json for module details)
+extensions:
+  registry: "config/extensions.json"
+  auto_load: true
