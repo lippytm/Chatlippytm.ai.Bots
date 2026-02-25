@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+.env
+.venv
+env/
+venv/
+.pytest_cache/
+
+# Java / Maven
+modules/java/target/
+*.class
+*.jar
+*.war
+
+# JavaScript / Node.js
+node_modules/
+npm-debug.log*
+package-lock.json
+
+# IDE / editor
+.vscode/
+.idea/
+*.iml
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS
+.DS_Store
+Thumbs.db

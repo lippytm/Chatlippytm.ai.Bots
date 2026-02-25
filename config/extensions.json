@@ -1,0 +1,44 @@
+{
+  "extensions": [
+    {
+      "id": "openai-chat",
+      "name": "OpenAI Chat Integration",
+      "language": "python",
+      "version": "1.0.0",
+      "description": "Sends prompts to OpenAI Chat Completion API and returns responses.",
+      "entry_point": "modules/python/ai_integration.py",
+      "enabled": true,
+      "tags": ["openai", "chat", "nlp"]
+    },
+    {
+      "id": "js-ai-chat",
+      "name": "JavaScript AI Chat Integration",
+      "language": "javascript",
+      "version": "1.0.0",
+      "description": "Node.js integration with OpenAI Chat Completion API.",
+      "entry_point": "modules/javascript/ai_integration.js",
+      "enabled": true,
+      "tags": ["openai", "nodejs", "chat"]
+    },
+    {
+      "id": "java-ai-chat",
+      "name": "Java AI Chat Integration",
+      "language": "java",
+      "version": "1.0.0",
+      "description": "Java integration demonstrating AI chat via HTTP calls.",
+      "entry_point": "modules/java/src/main/java/ai/AiIntegration.java",
+      "enabled": true,
+      "tags": ["java", "http", "chat"]
+    },
+    {
+      "id": "blockchain-placeholder",
+      "name": "Blockchain AI Placeholder",
+      "language": "solidity",
+      "version": "0.1.0",
+      "description": "Placeholder scaffolding for blockchain-based AI integrations.",
+      "entry_point": "modules/blockchain/",
+      "enabled": false,
+      "tags": ["blockchain", "solidity", "placeholder"]
+    }
+  ]
+}
