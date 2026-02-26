@@ -77,10 +77,14 @@ def swarm_cmd(repos: str, agents: str, workers: int, output: str | None) -> None
     """Launch the AI agent swarm across target repositories."""
     from agents import (
         CodeReviewAgent,
+        DiagnosticsAgent,
+        FullStackDebuggerAgent,
         IssueTriageAgent,
+        PythonDebuggerAgent,
         RepoScannerAgent,
         SecurityAgent,
         TrainerAgent,
+        TransparencyAgent,
     )
     from swarm import Swarm
 
@@ -90,6 +94,10 @@ def swarm_cmd(repos: str, agents: str, workers: int, output: str | None) -> None
         "RepoScannerAgent": RepoScannerAgent,
         "IssueTriageAgent": IssueTriageAgent,
         "TrainerAgent": TrainerAgent,
+        "PythonDebuggerAgent": PythonDebuggerAgent,
+        "FullStackDebuggerAgent": FullStackDebuggerAgent,
+        "DiagnosticsAgent": DiagnosticsAgent,
+        "TransparencyAgent": TransparencyAgent,
     }
 
     selected = [a.strip() for a in agents.split(",") if a.strip()]

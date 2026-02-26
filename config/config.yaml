@@ -21,6 +21,10 @@ agents:
     - test_runner
     - dependency_auditor
     - security_scanner
+    - python_debugger
+    - fullstack_debugger
+    - diagnostics
+    - transparency
 
 training:
   model: gpt-4o
@@ -54,3 +58,20 @@ pipelines:
     branch: main
     agents:
       - trainer
+  - name: python_debugging
+    trigger: pull_request
+    agents:
+      - python_debugger
+  - name: fullstack_debugging
+    trigger: pull_request
+    agents:
+      - fullstack_debugger
+  - name: fullstack_diagnostics
+    trigger: schedule
+    cron: "0 6 * * *"        # daily at 6 AM
+    agents:
+      - diagnostics
+  - name: ai_transparency
+    trigger: pull_request
+    agents:
+      - transparency
