@@ -21,6 +21,8 @@ agents:
     - test_runner
     - dependency_auditor
     - security_scanner
+    - workshop_manager
+    - sandbox_provisioner
 
 training:
   model: gpt-4o
@@ -33,6 +35,51 @@ repositories:
   # Add GitHub repos the swarm should manage
   # Format: owner/repo
   targets: []
+
+# ---------------------------------------------------------------------------
+# Web3 Workshop Platform
+# ---------------------------------------------------------------------------
+
+web3:
+  enabled: true
+  session_ttl_seconds: 3600       # wallet session duration
+  challenge_ttl_seconds: 300      # sign-in challenge validity window
+  # In production, set WEB3_SECRET_KEY env var to a long random secret
+  token_registry:
+    enabled: true
+    default_award_amount: 1       # tokens awarded per milestone
+    token_names:
+      - workshop_completion
+      - assignment_pass
+      - peer_review
+      - streak_bonus
+
+workshop:
+  templates_path: workshop/templates   # optional local template overrides
+  grading:
+    default_rubric: "Correctness, code quality, clarity, best-practices"
+    pass_threshold: 70               # minimum score (0-100) to pass
+  copilot_integration:
+    enabled: true                    # embed GitHub Copilot-style hints
+    hint_on_grade: true              # include a code hint in grading feedback
+  task_guides:
+    skill_levels:
+      - beginner
+      - intermediate
+      - advanced
+  automation:
+    auto_grade_on_submit: true
+    send_feedback_to_participant: true
+
+sandbox:
+  cpu_limit: 1.0        # fractional CPU cores per sandbox
+  memory_mb: 512        # RAM per sandbox in MB
+  available_modules:
+    - coding
+    - ai_experimentation
+    - blockchain_dev
+  max_sandboxes_per_user: 3
+  idle_timeout_minutes: 30
 
 pipelines:
   - name: code_review
@@ -54,3 +101,8 @@ pipelines:
     branch: main
     agents:
       - trainer
+  - name: workshop_automation
+    trigger: workflow_dispatch
+    agents:
+      - workshop_manager
+      - sandbox_provisioner
