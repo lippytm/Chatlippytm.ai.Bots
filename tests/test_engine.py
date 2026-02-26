@@ -289,3 +289,216 @@ class TestTrainingPipeline:
         assert count == 1
         assert merged is not None
         assert merged.exists()
+
+
+# ---------------------------------------------------------------------------
+# PythonDebuggerAgent
+# ---------------------------------------------------------------------------
+
+
+class TestPythonDebuggerAgent:
+    @patch("agents.base_agent.OpenAI")
+    def test_run_returns_analysis(self, mock_openai_cls):
+        mock_client = MagicMock()
+        mock_openai_cls.return_value = mock_client
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content="## Analysis\nRoot cause: off-by-one error"))]
+        )
+
+        from agents.python_debugger_agent import PythonDebuggerAgent
+
+        agent = PythonDebuggerAgent()
+        result = agent.run({
+            "repo": "owner/repo",
+            "traceback": "IndexError: list index out of range\n  File 'app.py', line 42",
+            "code_snippet": "items[index]",
+        })
+
+        assert result["status"] == "ok"
+        assert "analysis" in result
+        assert "Root cause" in result["analysis"]
+
+    @patch("agents.base_agent.OpenAI")
+    def test_run_error_on_missing_context(self, mock_openai_cls):
+        mock_openai_cls.return_value = MagicMock()
+        from agents.python_debugger_agent import PythonDebuggerAgent
+
+        agent = PythonDebuggerAgent()
+        result = agent.run({"repo": "owner/repo"})
+        assert result["status"] == "error"
+
+    @patch("agents.base_agent.OpenAI")
+    def test_run_accepts_description_only(self, mock_openai_cls):
+        mock_client = MagicMock()
+        mock_openai_cls.return_value = mock_client
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content="Suggestion: add input validation"))]
+        )
+
+        from agents.python_debugger_agent import PythonDebuggerAgent
+
+        agent = PythonDebuggerAgent()
+        result = agent.run({"repo": "owner/repo", "description": "Function returns None unexpectedly"})
+        assert result["status"] == "ok"
+        assert "analysis" in result
+
+
+# ---------------------------------------------------------------------------
+# FullStackDebuggerAgent
+# ---------------------------------------------------------------------------
+
+
+class TestFullStackDebuggerAgent:
+    @patch("agents.base_agent.OpenAI")
+    def test_run_returns_analysis(self, mock_openai_cls):
+        mock_client = MagicMock()
+        mock_openai_cls.return_value = mock_client
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content="## Full Stack Analysis\nBackend tier: 500 error"))]
+        )
+
+        from agents.fullstack_debugger_agent import FullStackDebuggerAgent
+
+        agent = FullStackDebuggerAgent()
+        result = agent.run({
+            "repo": "owner/repo",
+            "error_log": "ERROR 500 Internal Server Error\n  at server.js:88",
+            "backend_snippet": "app.get('/api', handler)",
+        })
+
+        assert result["status"] == "ok"
+        assert "analysis" in result
+        assert "500" in result["analysis"]
+
+    @patch("agents.base_agent.OpenAI")
+    def test_run_error_on_missing_context(self, mock_openai_cls):
+        mock_openai_cls.return_value = MagicMock()
+        from agents.fullstack_debugger_agent import FullStackDebuggerAgent
+
+        agent = FullStackDebuggerAgent()
+        result = agent.run({"repo": "owner/repo"})
+        assert result["status"] == "error"
+
+    @patch("agents.base_agent.OpenAI")
+    def test_run_accepts_description_only(self, mock_openai_cls):
+        mock_client = MagicMock()
+        mock_openai_cls.return_value = mock_client
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content="Check CORS settings"))]
+        )
+
+        from agents.fullstack_debugger_agent import FullStackDebuggerAgent
+
+        agent = FullStackDebuggerAgent()
+        result = agent.run({"repo": "owner/repo", "description": "Login works locally but fails in production"})
+        assert result["status"] == "ok"
+
+
+# ---------------------------------------------------------------------------
+# DiagnosticsAgent
+# ---------------------------------------------------------------------------
+
+
+class TestDiagnosticsAgent:
+    @patch("agents.base_agent.OpenAI")
+    def test_run_returns_report(self, mock_openai_cls):
+        mock_client = MagicMock()
+        mock_openai_cls.return_value = mock_client
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content="## Diagnostics Report\nHealth score: 72/100"))]
+        )
+
+        from agents.diagnostics_agent import DiagnosticsAgent
+
+        agent = DiagnosticsAgent()
+        result = agent.run({
+            "repo": "owner/repo",
+            "logs": "ERROR: database connection pool exhausted",
+            "metrics": "cpu_usage=85% memory_usage=92%",
+        })
+
+        assert result["status"] == "ok"
+        assert "report" in result
+        assert "Health score" in result["report"]
+
+    @patch("agents.base_agent.OpenAI")
+    def test_run_error_on_missing_context(self, mock_openai_cls):
+        mock_openai_cls.return_value = MagicMock()
+        from agents.diagnostics_agent import DiagnosticsAgent
+
+        agent = DiagnosticsAgent()
+        result = agent.run({"repo": "owner/repo"})
+        assert result["status"] == "error"
+
+    @patch("agents.base_agent.OpenAI")
+    def test_run_accepts_description_only(self, mock_openai_cls):
+        mock_client = MagicMock()
+        mock_openai_cls.return_value = mock_client
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content="Investigate memory leaks"))]
+        )
+
+        from agents.diagnostics_agent import DiagnosticsAgent
+
+        agent = DiagnosticsAgent()
+        result = agent.run({"repo": "owner/repo", "description": "Intermittent OOM crashes overnight"})
+        assert result["status"] == "ok"
+        assert "report" in result
+
+
+# ---------------------------------------------------------------------------
+# TransparencyAgent
+# ---------------------------------------------------------------------------
+
+
+class TestTransparencyAgent:
+    @patch("agents.base_agent.OpenAI")
+    def test_run_returns_explanation(self, mock_openai_cls):
+        mock_client = MagicMock()
+        mock_openai_cls.return_value = mock_client
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content="## Transparency Report\nConfidence: HIGH"))]
+        )
+
+        from agents.transparency_agent import TransparencyAgent
+
+        agent = TransparencyAgent()
+        result = agent.run({
+            "repo": "owner/repo",
+            "decision": "Merge PR #42 – no critical issues found",
+            "agent_name": "CodeReviewAgent",
+            "supporting_context": "diff showing minor style changes",
+        })
+
+        assert result["status"] == "ok"
+        assert "explanation" in result
+        assert "Confidence" in result["explanation"]
+
+    @patch("agents.base_agent.OpenAI")
+    def test_run_error_on_missing_decision(self, mock_openai_cls):
+        mock_openai_cls.return_value = MagicMock()
+        from agents.transparency_agent import TransparencyAgent
+
+        agent = TransparencyAgent()
+        result = agent.run({"repo": "owner/repo"})
+        assert result["status"] == "error"
+
+    @patch("agents.base_agent.OpenAI")
+    def test_run_includes_agent_name_in_result(self, mock_openai_cls):
+        mock_client = MagicMock()
+        mock_openai_cls.return_value = mock_client
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content="Explanation text"))]
+        )
+
+        from agents.transparency_agent import TransparencyAgent
+
+        agent = TransparencyAgent()
+        result = agent.run({
+            "repo": "owner/repo",
+            "decision": "Flag issue #5 as high priority",
+            "agent_name": "IssueTriageAgent",
+        })
+
+        assert result["status"] == "ok"
+        assert result["agent_name"] == "IssueTriageAgent"
