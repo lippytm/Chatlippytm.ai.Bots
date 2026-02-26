@@ -69,17 +69,26 @@ def cli(verbose: bool) -> None:
     "--agents",
     default="CodeReviewAgent,SecurityAgent,RepoScannerAgent,IssueTriageAgent",
     show_default=True,
-    help="Comma-separated agent names to include in the swarm.",
+    help="Comma-separated agent names to include in the swarm. "
+         "Available: CodeReviewAgent, SecurityAgent, RepoScannerAgent, "
+         "IssueTriageAgent, TrainerAgent, TradingBotAgent, DiagnosticsAgent, "
+         "SandboxAgent, DocAgent, DatabaseAgent, ApiLearningAgent.",
 )
 @click.option("--workers", default=4, show_default=True, help="Swarm concurrency.")
 @click.option("--output", default=None, help="Write JSON results to this file.")
 def swarm_cmd(repos: str, agents: str, workers: int, output: str | None) -> None:
     """Launch the AI agent swarm across target repositories."""
     from agents import (
+        ApiLearningAgent,
         CodeReviewAgent,
+        DatabaseAgent,
+        DiagnosticsAgent,
+        DocAgent,
         IssueTriageAgent,
         RepoScannerAgent,
+        SandboxAgent,
         SecurityAgent,
+        TradingBotAgent,
         TrainerAgent,
     )
     from swarm import Swarm
@@ -90,6 +99,12 @@ def swarm_cmd(repos: str, agents: str, workers: int, output: str | None) -> None
         "RepoScannerAgent": RepoScannerAgent,
         "IssueTriageAgent": IssueTriageAgent,
         "TrainerAgent": TrainerAgent,
+        "TradingBotAgent": TradingBotAgent,
+        "DiagnosticsAgent": DiagnosticsAgent,
+        "SandboxAgent": SandboxAgent,
+        "DocAgent": DocAgent,
+        "DatabaseAgent": DatabaseAgent,
+        "ApiLearningAgent": ApiLearningAgent,
     }
 
     selected = [a.strip() for a in agents.split(",") if a.strip()]
@@ -255,11 +270,332 @@ def triage_cmd(repo: str, issue: int) -> None:
 
 
 # ---------------------------------------------------------------------------
+# trade command
+# ---------------------------------------------------------------------------
+
+
+@cli.command("trade")
+@click.option("--symbol", required=True, help="Trading symbol, e.g. BTC/USDT, AAPL, EUR/USD.")
+@click.option(
+    "--asset-class",
+    default="crypto",
+    show_default=True,
+    type=click.Choice(["crypto", "stocks", "forex"], case_sensitive=False),
+    help="Asset class.",
+)
+@click.option("--market-data", required=True, help="Market data summary or price action text.")
+@click.option("--rl-history", default="", help="Reinforcement-learning performance history.")
+@click.option(
+    "--sandbox/--live",
+    default=True,
+    show_default=True,
+    help="Run in sandbox mode (no live execution).",
+)
+def trade_cmd(
+    symbol: str,
+    asset_class: str,
+    market_data: str,
+    rl_history: str,
+    sandbox: bool,
+) -> None:
+    """Run the TradingBotAgent to generate a trading decision."""
+    from agents import TradingBotAgent
+
+    console.print(
+        f"[bold yellow]📈 TradingBotAgent:[/bold yellow] {symbol} ({asset_class}) "
+        f"| sandbox={sandbox}"
+    )
+    agent = TradingBotAgent()
+    result = agent.run(
+        {
+            "symbol": symbol,
+            "asset_class": asset_class,
+            "market_data": market_data,
+            "rl_history": rl_history,
+            "sandbox": sandbox,
+        }
+    )
+
+    if result.get("status") == "error":
+        console.print(f"[red]Error: {result.get('message')}[/red]")
+        sys.exit(1)
+
+    decision = result.get("decision", {})
+    console.print(
+        Panel(
+            f"Action    : [bold]{decision.get('action', 'N/A')}[/bold]\n"
+            f"Confidence: {decision.get('confidence', 'N/A')}\n"
+            f"Strategy  : {decision.get('strategy', 'N/A')}\n"
+            f"Risk      : {decision.get('risk_level', 'N/A')}\n"
+            f"Rationale : {decision.get('rationale', 'N/A')}",
+            title=f"💹 {symbol} Trading Decision",
+        )
+    )
+
+
+# ---------------------------------------------------------------------------
+# diagnose command
+# ---------------------------------------------------------------------------
+
+
+@cli.command("diagnose")
+@click.option("--target", required=True, help="Target label (repo, component, etc.).")
+@click.option("--error-logs", default="", help="Error or exception log text.")
+@click.option("--code", default="", help="Code snippet to analyse.")
+@click.option("--workflow", default="", help="CI/CD workflow definition.")
+@click.option("--output", default=None, help="Write JSON results to this file.")
+def diagnose_cmd(
+    target: str, error_logs: str, code: str, workflow: str, output: str | None
+) -> None:
+    """Run the DiagnosticsAgent to analyse and resolve issues."""
+    from agents import DiagnosticsAgent
+
+    console.print(f"[bold red]🔍 DiagnosticsAgent:[/bold red] {target}")
+    agent = DiagnosticsAgent()
+    result = agent.run(
+        {
+            "target": target,
+            "error_logs": error_logs,
+            "code_snippets": code,
+            "workflow": workflow,
+        }
+    )
+
+    if result.get("status") == "error":
+        console.print(f"[red]Error: {result.get('message')}[/red]")
+        sys.exit(1)
+
+    diagnostics = result.get("diagnostics", {})
+    console.print(
+        Panel(
+            f"Severity : [bold]{diagnostics.get('severity', 'N/A')}[/bold]\n"
+            f"Issues   : {len(diagnostics.get('issues_found', []))}\n"
+            f"Summary  : {diagnostics.get('summary', 'N/A')}",
+            title="🩺 Diagnostics Report",
+        )
+    )
+
+    if output:
+        with open(output, "w", encoding="utf-8") as fh:
+            json.dump(result, fh, indent=2)
+        console.print(f"[green]Results written to {output}[/green]")
+
+
+# ---------------------------------------------------------------------------
+# sandbox command
+# ---------------------------------------------------------------------------
+
+
+@cli.command("sandbox")
+@click.option("--experiment", required=True, help="Description of the experiment or RL task.")
+@click.option(
+    "--type",
+    "experiment_type",
+    default="simulation",
+    show_default=True,
+    type=click.Choice(["rl_training", "simulation", "diagnostics", "api_test"]),
+    help="Experiment type.",
+)
+@click.option("--real-world-data", default="", help="Real-world data samples for training.")
+def sandbox_cmd(experiment: str, experiment_type: str, real_world_data: str) -> None:
+    """Configure and launch a sandbox environment via SandboxAgent."""
+    from agents import SandboxAgent
+
+    console.print(f"[bold cyan]🧪 SandboxAgent:[/bold cyan] {experiment_type}")
+    agent = SandboxAgent()
+    result = agent.run(
+        {
+            "experiment": experiment,
+            "experiment_type": experiment_type,
+            "real_world_data": real_world_data,
+        }
+    )
+
+    if result.get("status") == "error":
+        console.print(f"[red]Error: {result.get('message')}[/red]")
+        sys.exit(1)
+
+    cfg = result.get("sandbox_config", {})
+    console.print(
+        Panel(
+            f"Sandbox ID    : {cfg.get('sandbox_id', 'N/A')}\n"
+            f"Experiment    : {cfg.get('experiment_type', 'N/A')}\n"
+            f"RL Algorithm  : {cfg.get('training_plan', {}).get('algorithm', 'N/A')}\n"
+            f"Status        : {cfg.get('status', 'N/A')}",
+            title="🧪 Sandbox Configuration",
+        )
+    )
+
+
+# ---------------------------------------------------------------------------
+# docs command
+# ---------------------------------------------------------------------------
+
+
+@cli.command("docs")
+@click.option("--repo", required=True, help="owner/repo to document.")
+@click.option("--max-files", default=20, show_default=True)
+@click.option(
+    "--no-transparency-log",
+    is_flag=True,
+    default=False,
+    help="Omit the transparency log section.",
+)
+@click.option("--output", default=None, help="Write Markdown docs to this file.")
+def docs_cmd(repo: str, max_files: int, no_transparency_log: bool, output: str | None) -> None:
+    """Generate project documentation using the DocAgent."""
+    from agents import DocAgent
+
+    console.print(f"[bold green]📄 DocAgent:[/bold green] {repo}")
+    agent = DocAgent()
+    result = agent.run(
+        {
+            "repo": repo,
+            "max_files": max_files,
+            "include_transparency_log": not no_transparency_log,
+        }
+    )
+
+    if result.get("status") == "error":
+        console.print(f"[red]Error: {result.get('message')}[/red]")
+        sys.exit(1)
+
+    doc = result.get("documentation", "")
+    if output:
+        with open(output, "w", encoding="utf-8") as fh:
+            fh.write(doc)
+        console.print(f"[green]Documentation written to {output}[/green]")
+    else:
+        console.print(doc)
+
+
+# ---------------------------------------------------------------------------
+# db command
+# ---------------------------------------------------------------------------
+
+
+@cli.command("db")
+@click.option("--db-type", required=True, help="Database type, e.g. PostgreSQL, MongoDB.")
+@click.option("--schema", default="", help="Schema definition or data model description.")
+@click.option("--query-logs", default="", help="Slow query log or problematic queries.")
+@click.option("--metrics", default="", help="Performance metrics text.")
+@click.option("--output", default=None, help="Write JSON report to this file.")
+def db_cmd(
+    db_type: str, schema: str, query_logs: str, metrics: str, output: str | None
+) -> None:
+    """Analyse and optimise a database using the DatabaseAgent."""
+    from agents import DatabaseAgent
+
+    console.print(f"[bold magenta]🗄️  DatabaseAgent:[/bold magenta] {db_type}")
+    agent = DatabaseAgent()
+    result = agent.run(
+        {
+            "db_type": db_type,
+            "schema": schema,
+            "query_logs": query_logs,
+            "metrics": metrics,
+        }
+    )
+
+    if result.get("status") == "error":
+        console.print(f"[red]Error: {result.get('message')}[/red]")
+        sys.exit(1)
+
+    report = result.get("db_report", {})
+    console.print(
+        Panel(
+            f"Health Score : [bold]{report.get('health_score', 'N/A')}[/bold] / 100\n"
+            f"Optimisations: {len(report.get('optimisations', []))}\n"
+            f"Scaling      : {report.get('scaling_recommendation', {}).get('action', 'N/A')}\n"
+            f"Summary      : {report.get('summary', 'N/A')}",
+            title=f"🗄️  {db_type} Database Report",
+        )
+    )
+
+    if output:
+        with open(output, "w", encoding="utf-8") as fh:
+            json.dump(result, fh, indent=2)
+        console.print(f"[green]Results written to {output}[/green]")
+
+
+# ---------------------------------------------------------------------------
+# api-learn command
+# ---------------------------------------------------------------------------
+
+
+@cli.command("api-learn")
+@click.option("--api-spec", required=True, help="API specification text or file path.")
+@click.option("--api-name", default="unknown-api", show_default=True, help="API name.")
+@click.option(
+    "--target-bots",
+    default="",
+    help="Comma-separated list of bot agents to receive training examples.",
+)
+@click.option(
+    "--no-lifecycle",
+    is_flag=True,
+    default=False,
+    help="Skip lifecycle simulation.",
+)
+@click.option("--output", default=None, help="Write JSON learning data to this file.")
+def api_learn_cmd(
+    api_spec: str,
+    api_name: str,
+    target_bots: str,
+    no_lifecycle: bool,
+    output: str | None,
+) -> None:
+    """Run the ApiLearningAgent to teach bots API functionalities."""
+    import os as _os
+
+    from agents import ApiLearningAgent
+
+    # Allow passing a file path instead of inline spec
+    if _os.path.isfile(api_spec):
+        with open(api_spec, encoding="utf-8") as fh:
+            api_spec = fh.read()
+
+    bots = [b.strip() for b in target_bots.split(",") if b.strip()]
+
+    console.print(f"[bold blue]🔌 ApiLearningAgent:[/bold blue] {api_name}")
+    agent = ApiLearningAgent()
+    result = agent.run(
+        {
+            "api_spec": api_spec,
+            "api_name": api_name,
+            "target_bots": bots,
+            "simulate_lifecycle": not no_lifecycle,
+        }
+    )
+
+    if result.get("status") == "error":
+        console.print(f"[red]Error: {result.get('message')}[/red]")
+        sys.exit(1)
+
+    learning = result.get("learning_data", {})
+    console.print(
+        Panel(
+            f"API           : {learning.get('api_name', api_name)}\n"
+            f"Endpoints     : {len(learning.get('endpoints_discovered', []))}\n"
+            f"Simulations   : {len(learning.get('lifecycle_simulations', []))}\n"
+            f"Training exs  : {len(learning.get('training_examples', []))}\n"
+            f"Teaching notes: {learning.get('bot_teaching_notes', 'N/A')[:120]}",
+            title="🔌 API Learning Report",
+        )
+    )
+
+    if output:
+        with open(output, "w", encoding="utf-8") as fh:
+            json.dump(result, fh, indent=2)
+        console.print(f"[green]Results written to {output}[/green]")
+
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
 
-def _print_results_table(results: list[dict]) -> None:
+def _print_results_table(results: list[dict]) -> None:def _print_results_table(results: list[dict]) -> None:
     table = Table(title="Swarm Results", show_lines=True)
     table.add_column("Task ID", style="dim")
     table.add_column("Agent")
