@@ -1,6 +1,6 @@
 # Swarm & Agent configuration
 swarm:
-  max_agents: 10
+  max_agents: 20
   concurrency: 4
   task_timeout: 300           # seconds per agent task
   retry_attempts: 3
@@ -21,6 +21,12 @@ agents:
     - test_runner
     - dependency_auditor
     - security_scanner
+    - trading_bot
+    - diagnostics
+    - sandbox
+    - doc_generator
+    - database_manager
+    - api_learner
 
 training:
   model: gpt-4o
@@ -28,6 +34,26 @@ training:
   training_data_path: training/data
   fine_tune_threshold: 100    # min examples before fine-tuning
   evaluation_split: 0.2
+
+sandbox:
+  default_isolation: strict
+  resource_limits:
+    cpu_cores: 2
+    memory_mb: 512
+    timeout_s: 300
+  rl_defaults:
+    algorithm: PPO
+    episodes: 100
+    learning_rate: 0.0003
+
+trading:
+  sandbox_mode: true          # set false only for live trading
+  supported_asset_classes:
+    - crypto
+    - stocks
+    - forex
+  default_risk_level: medium
+  max_position_size: 0.1      # 10 % of portfolio per trade
 
 repositories:
   # Add GitHub repos the swarm should manage
@@ -54,3 +80,22 @@ pipelines:
     branch: main
     agents:
       - trainer
+  - name: diagnostics
+    trigger: push
+    agents:
+      - diagnostics
+  - name: doc_generation
+    trigger: push
+    branch: main
+    agents:
+      - doc_generator
+  - name: trading_signals
+    trigger: schedule
+    cron: "0 * * * *"       # hourly (adjust frequency to match strategy needs)
+    agents:
+      - trading_bot
+  - name: api_learning
+    trigger: schedule
+    cron: "0 3 * * *"        # daily at 3 AM
+    agents:
+      - api_learner

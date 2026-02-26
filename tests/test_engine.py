@@ -289,3 +289,363 @@ class TestTrainingPipeline:
         assert count == 1
         assert merged is not None
         assert merged.exists()
+
+
+# ---------------------------------------------------------------------------
+# TradingBotAgent
+# ---------------------------------------------------------------------------
+
+
+class TestTradingBotAgent:
+    @patch("agents.base_agent.OpenAI")
+    def test_run_returns_decision(self, mock_openai_cls):
+        decision = {
+            "action": "buy",
+            "confidence": 0.85,
+            "strategy": "momentum",
+            "rationale": "Strong uptrend detected.",
+            "risk_level": "medium",
+            "suggested_position_size": 0.05,
+            "stop_loss_pct": 2.0,
+            "take_profit_pct": 4.0,
+            "rl_recommendation": None,
+        }
+        mock_client = MagicMock()
+        mock_openai_cls.return_value = mock_client
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content=json.dumps(decision)))]
+        )
+
+        from agents.trading_bot_agent import TradingBotAgent
+
+        agent = TradingBotAgent()
+        result = agent.run(
+            {
+                "symbol": "BTC/USDT",
+                "asset_class": "crypto",
+                "market_data": "Price: 65000 | RSI: 72 | MACD: bullish",
+                "sandbox": True,
+            }
+        )
+
+        assert result["status"] == "ok"
+        assert result["symbol"] == "BTC/USDT"
+        assert result["decision"]["action"] == "buy"
+        assert result["sandbox"] is True
+
+    @patch("agents.base_agent.OpenAI")
+    def test_run_error_on_missing_symbol(self, mock_openai_cls):
+        mock_openai_cls.return_value = MagicMock()
+        from agents.trading_bot_agent import TradingBotAgent
+
+        agent = TradingBotAgent()
+        result = agent.run({"asset_class": "crypto", "market_data": "some data"})
+        assert result["status"] == "error"
+
+    @patch("agents.base_agent.OpenAI")
+    def test_run_error_on_unsupported_asset_class(self, mock_openai_cls):
+        mock_openai_cls.return_value = MagicMock()
+        from agents.trading_bot_agent import TradingBotAgent
+
+        agent = TradingBotAgent()
+        result = agent.run(
+            {"symbol": "AAPL", "asset_class": "options", "market_data": "some data"}
+        )
+        assert result["status"] == "error"
+
+    @patch("agents.base_agent.OpenAI")
+    def test_run_error_on_missing_market_data(self, mock_openai_cls):
+        mock_openai_cls.return_value = MagicMock()
+        from agents.trading_bot_agent import TradingBotAgent
+
+        agent = TradingBotAgent()
+        result = agent.run({"symbol": "EUR/USD", "asset_class": "forex"})
+        assert result["status"] == "error"
+
+
+# ---------------------------------------------------------------------------
+# DiagnosticsAgent
+# ---------------------------------------------------------------------------
+
+
+class TestDiagnosticsAgent:
+    @patch("agents.base_agent.OpenAI")
+    def test_run_returns_report(self, mock_openai_cls):
+        diag_payload = {
+            "severity": "medium",
+            "issues_found": [
+                {
+                    "type": "null_pointer",
+                    "location": "app.py:42",
+                    "description": "Possible None dereference",
+                    "fix": "Add None check",
+                }
+            ],
+            "workflow_optimisations": ["Cache test results"],
+            "model_evaluation": {"accuracy_estimate": 0.92, "notes": "Good"},
+            "auto_resolved": [],
+            "summary": "One medium issue found.",
+        }
+        mock_client = MagicMock()
+        mock_openai_cls.return_value = mock_client
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content=json.dumps(diag_payload)))]
+        )
+
+        from agents.diagnostics_agent import DiagnosticsAgent
+
+        agent = DiagnosticsAgent()
+        result = agent.run(
+            {
+                "target": "myapp",
+                "error_logs": "NullPointerException at app.py:42",
+            }
+        )
+
+        assert result["status"] == "ok"
+        assert result["target"] == "myapp"
+        assert result["diagnostics"]["severity"] == "medium"
+
+    @patch("agents.base_agent.OpenAI")
+    def test_run_error_on_no_input(self, mock_openai_cls):
+        mock_openai_cls.return_value = MagicMock()
+        from agents.diagnostics_agent import DiagnosticsAgent
+
+        agent = DiagnosticsAgent()
+        result = agent.run({"target": "myapp"})
+        assert result["status"] == "error"
+
+
+# ---------------------------------------------------------------------------
+# SandboxAgent
+# ---------------------------------------------------------------------------
+
+
+class TestSandboxAgent:
+    @patch("agents.base_agent.OpenAI")
+    def test_run_returns_config(self, mock_openai_cls):
+        sandbox_payload = {
+            "sandbox_id": "sb-001",
+            "experiment_type": "rl_training",
+            "environment_config": {
+                "isolation_level": "strict",
+                "resource_limits": {"cpu_cores": 2, "memory_mb": 512, "timeout_s": 300},
+                "allowed_actions": ["trade", "observe"],
+            },
+            "training_plan": {
+                "algorithm": "PPO",
+                "episodes": 100,
+                "learning_rate": 0.0003,
+                "reward_function": "profit_pct",
+            },
+            "safety_checks": ["no live API calls", "budget cap enforced"],
+            "expected_outcomes": ["model convergence within 100 episodes"],
+            "status": "ready",
+        }
+        mock_client = MagicMock()
+        mock_openai_cls.return_value = mock_client
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content=json.dumps(sandbox_payload)))]
+        )
+
+        from agents.sandbox_agent import SandboxAgent
+
+        agent = SandboxAgent()
+        result = agent.run(
+            {
+                "experiment": "Train a crypto trading RL agent using PPO",
+                "experiment_type": "rl_training",
+            }
+        )
+
+        assert result["status"] == "ok"
+        assert result["sandbox_config"]["status"] == "ready"
+        assert result["experiment_type"] == "rl_training"
+
+    @patch("agents.base_agent.OpenAI")
+    def test_run_error_on_missing_experiment(self, mock_openai_cls):
+        mock_openai_cls.return_value = MagicMock()
+        from agents.sandbox_agent import SandboxAgent
+
+        agent = SandboxAgent()
+        result = agent.run({})
+        assert result["status"] == "error"
+
+
+# ---------------------------------------------------------------------------
+# DocAgent
+# ---------------------------------------------------------------------------
+
+
+class TestDocAgent:
+    @patch("agents.base_agent.OpenAI")
+    @patch("agents.doc_agent.Github")
+    def test_run_returns_documentation(self, mock_gh_cls, mock_openai_cls):
+        mock_client = MagicMock()
+        mock_openai_cls.return_value = mock_client
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content="# My Project\nDocs here."))]
+        )
+
+        mock_repo = MagicMock()
+        mock_repo.description = "Test repo"
+        mock_readme = MagicMock()
+        mock_readme.decoded_content = b"# README\nHello world"
+        mock_repo.get_readme.return_value = mock_readme
+        mock_repo.get_contents.return_value = [
+            MagicMock(type="file", path="main.py"),
+        ]
+        mock_repo.get_commits.return_value = [
+            MagicMock(commit=MagicMock(message="Initial commit"))
+        ]
+        mock_repo.get_issues.return_value = []
+        mock_gh_cls.return_value.get_repo.return_value = mock_repo
+
+        from agents.doc_agent import DocAgent
+
+        agent = DocAgent()
+        result = agent.run({"repo": "owner/repo"})
+
+        assert result["status"] == "ok"
+        assert "# My Project" in result["documentation"]
+
+    @patch("agents.base_agent.OpenAI")
+    def test_run_error_on_missing_repo(self, mock_openai_cls):
+        mock_openai_cls.return_value = MagicMock()
+        from agents.doc_agent import DocAgent
+
+        agent = DocAgent()
+        result = agent.run({})
+        assert result["status"] == "error"
+
+
+# ---------------------------------------------------------------------------
+# DatabaseAgent
+# ---------------------------------------------------------------------------
+
+
+class TestDatabaseAgent:
+    @patch("agents.base_agent.OpenAI")
+    def test_run_returns_report(self, mock_openai_cls):
+        db_payload = {
+            "db_type": "PostgreSQL",
+            "health_score": 78,
+            "optimisations": [
+                {
+                    "type": "index",
+                    "description": "Add index on users.email",
+                    "impact": "high",
+                    "sql_or_command": "CREATE INDEX idx_users_email ON users(email);",
+                }
+            ],
+            "scaling_recommendation": {
+                "action": "scale_up",
+                "rationale": "High CPU utilisation",
+                "suggested_config": "Upgrade to db.r5.xlarge",
+            },
+            "anomalies": [],
+            "maintenance_tasks": ["VACUUM ANALYZE users;"],
+            "summary": "Database is healthy with one optimisation opportunity.",
+        }
+        mock_client = MagicMock()
+        mock_openai_cls.return_value = mock_client
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content=json.dumps(db_payload)))]
+        )
+
+        from agents.database_agent import DatabaseAgent
+
+        agent = DatabaseAgent()
+        result = agent.run(
+            {
+                "db_type": "PostgreSQL",
+                "query_logs": "SELECT * FROM users WHERE email='x' took 2000ms",
+            }
+        )
+
+        assert result["status"] == "ok"
+        assert result["db_type"] == "PostgreSQL"
+        assert result["db_report"]["health_score"] == 78
+
+    @patch("agents.base_agent.OpenAI")
+    def test_run_error_on_missing_db_type(self, mock_openai_cls):
+        mock_openai_cls.return_value = MagicMock()
+        from agents.database_agent import DatabaseAgent
+
+        agent = DatabaseAgent()
+        result = agent.run({"query_logs": "some log"})
+        assert result["status"] == "error"
+
+    @patch("agents.base_agent.OpenAI")
+    def test_run_error_on_no_context(self, mock_openai_cls):
+        mock_openai_cls.return_value = MagicMock()
+        from agents.database_agent import DatabaseAgent
+
+        agent = DatabaseAgent()
+        result = agent.run({"db_type": "MySQL"})
+        assert result["status"] == "error"
+
+
+# ---------------------------------------------------------------------------
+# ApiLearningAgent
+# ---------------------------------------------------------------------------
+
+
+class TestApiLearningAgent:
+    @patch("agents.base_agent.OpenAI")
+    def test_run_returns_learning_data(self, mock_openai_cls):
+        api_payload = {
+            "api_name": "GitHub REST API",
+            "endpoints_discovered": [
+                {
+                    "method": "GET",
+                    "path": "/repos/{owner}/{repo}",
+                    "description": "Get a repository",
+                    "example_payload": None,
+                }
+            ],
+            "lifecycle_simulations": [
+                {
+                    "scenario": "Create and merge a PR",
+                    "steps": ["Create branch", "Push commits", "Open PR", "Merge PR"],
+                    "expected_outcome": "PR merged successfully",
+                }
+            ],
+            "training_examples": [
+                {
+                    "prompt": "How do I get repo details?",
+                    "completion": "GET /repos/{owner}/{repo}",
+                }
+            ],
+            "bot_teaching_notes": "Use pagination for large result sets.",
+            "integration_recommendations": ["Use conditional requests with ETags"],
+        }
+        mock_client = MagicMock()
+        mock_openai_cls.return_value = mock_client
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content=json.dumps(api_payload)))]
+        )
+
+        from agents.api_learning_agent import ApiLearningAgent
+
+        agent = ApiLearningAgent()
+        result = agent.run(
+            {
+                "api_spec": "GET /repos/{owner}/{repo} – Returns repository details.",
+                "api_name": "GitHub REST API",
+                "target_bots": ["TradingBotAgent", "DocAgent"],
+            }
+        )
+
+        assert result["status"] == "ok"
+        assert result["api_name"] == "GitHub REST API"
+        assert len(result["learning_data"]["endpoints_discovered"]) == 1
+
+    @patch("agents.base_agent.OpenAI")
+    def test_run_error_on_missing_api_spec(self, mock_openai_cls):
+        mock_openai_cls.return_value = MagicMock()
+        from agents.api_learning_agent import ApiLearningAgent
+
+        agent = ApiLearningAgent()
+        result = agent.run({"api_name": "SomeAPI"})
+        assert result["status"] == "error"
