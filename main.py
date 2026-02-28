@@ -81,6 +81,8 @@ def swarm_cmd(repos: str, agents: str, workers: int, output: str | None) -> None
         RepoScannerAgent,
         SecurityAgent,
         TrainerAgent,
+        WorkshopAgent,
+        SandboxAgent,
     )
     from swarm import Swarm
 
@@ -90,6 +92,8 @@ def swarm_cmd(repos: str, agents: str, workers: int, output: str | None) -> None
         "RepoScannerAgent": RepoScannerAgent,
         "IssueTriageAgent": IssueTriageAgent,
         "TrainerAgent": TrainerAgent,
+        "WorkshopAgent": WorkshopAgent,
+        "SandboxAgent": SandboxAgent,
     }
 
     selected = [a.strip() for a in agents.split(",") if a.strip()]
@@ -252,6 +256,83 @@ def triage_cmd(repo: str, issue: int) -> None:
             title=f"🏷️  Issue #{issue} Triage",
         )
     )
+
+
+# ---------------------------------------------------------------------------
+# workshop command
+# ---------------------------------------------------------------------------
+
+
+@cli.command("workshop")
+@click.option(
+    "--action",
+    required=True,
+    type=click.Choice(
+        ["list-templates", "load-template", "grade", "assist", "task-guide"],
+        case_sensitive=False,
+    ),
+    help="Workshop action to perform.",
+)
+@click.option("--template", default=None, help="Template name (for load-template).")
+@click.option("--submission", default=None, help="Participant submission text (for grade).")
+@click.option("--rubric", default=None, help="Grading rubric (for grade).")
+@click.option("--question", default=None, help="Question or code snippet (for assist).")
+@click.option("--topic", default=None, help="Topic for task guide generation.")
+@click.option(
+    "--skill-level",
+    default="intermediate",
+    show_default=True,
+    type=click.Choice(["beginner", "intermediate", "advanced"], case_sensitive=False),
+    help="Participant skill level.",
+)
+@click.option("--output", default=None, help="Write JSON result to this file.")
+def workshop_cmd(
+    action: str,
+    template: str | None,
+    submission: str | None,
+    rubric: str | None,
+    question: str | None,
+    topic: str | None,
+    skill_level: str,
+    output: str | None,
+) -> None:
+    """Run AI-powered workshop actions (templates, grading, assistance)."""
+    import json as _json
+
+    from agents import WorkshopAgent
+
+    agent = WorkshopAgent()
+
+    # Normalise action (CLI uses hyphens; agent uses underscores)
+    internal_action = action.replace("-", "_")
+
+    context: dict = {"action": internal_action, "skill_level": skill_level}
+    if template:
+        context["template_name"] = template
+    if submission:
+        context["submission"] = submission
+    if rubric:
+        context["rubric"] = rubric
+    if question:
+        context["question"] = question
+    if topic:
+        context["topic"] = topic
+
+    result = agent.run(context)
+
+    if result.get("status") == "error":
+        console.print(f"[red]Error: {result.get('message')}[/red]")
+        sys.exit(1)
+
+    console.print(Panel(
+        _json.dumps(result, indent=2),
+        title=f"🎓 Workshop – {action}",
+    ))
+
+    if output:
+        with open(output, "w", encoding="utf-8") as fh:
+            _json.dump(result, fh, indent=2)
+        console.print(f"[green]Result written to {output}[/green]")
 
 
 # ---------------------------------------------------------------------------

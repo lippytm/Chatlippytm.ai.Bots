@@ -9,6 +9,8 @@ from .repo_scanner_agent import RepoScannerAgent
 from .trainer_agent import TrainerAgent
 from .issue_triage_agent import IssueTriageAgent
 from .security_agent import SecurityAgent
+from .workshop_agent import WorkshopAgent
+from .sandbox_agent import SandboxAgent
 
 __all__ = [
     "BaseAgent",
@@ -17,4 +19,6 @@ __all__ = [
     "TrainerAgent",
     "IssueTriageAgent",
     "SecurityAgent",
+    "WorkshopAgent",
+    "SandboxAgent",
 ]

@@ -289,3 +289,340 @@ class TestTrainingPipeline:
         assert count == 1
         assert merged is not None
         assert merged.exists()
+
+
+# ---------------------------------------------------------------------------
+# WalletAuthManager
+# ---------------------------------------------------------------------------
+
+
+class TestWalletAuthManager:
+    def _make_manager(self):
+        from web3.wallet_auth import WalletAuthManager
+        return WalletAuthManager()
+
+    def test_create_challenge_returns_string(self):
+        mgr = self._make_manager()
+        challenge = mgr.create_challenge("0xABC123")
+        assert isinstance(challenge, str)
+        assert "0xabc123" in challenge
+
+    def test_verify_login_success(self):
+        mgr = self._make_manager()
+        address = "0xDEADBEEF"
+        challenge = mgr.create_challenge(address)
+        sig = mgr.sign_challenge(challenge)
+        session = mgr.verify_login(address, sig)
+        assert session is not None
+        assert session.address == address.lower()
+        assert session.is_valid()
+
+    def test_verify_login_bad_signature(self):
+        mgr = self._make_manager()
+        address = "0xBAD"
+        mgr.create_challenge(address)
+        session = mgr.verify_login(address, "wrong_signature")
+        assert session is None
+
+    def test_verify_login_no_challenge(self):
+        mgr = self._make_manager()
+        session = mgr.verify_login("0xNOCHALLENGE", "any_sig")
+        assert session is None
+
+    def test_get_session_after_login(self):
+        mgr = self._make_manager()
+        address = "0xSESSION"
+        challenge = mgr.create_challenge(address)
+        sig = mgr.sign_challenge(challenge)
+        mgr.verify_login(address, sig)
+        session = mgr.get_session(address)
+        assert session is not None
+
+    def test_revoke_session(self):
+        mgr = self._make_manager()
+        address = "0xREVOKE"
+        challenge = mgr.create_challenge(address)
+        sig = mgr.sign_challenge(challenge)
+        mgr.verify_login(address, sig)
+        mgr.revoke_session(address)
+        assert mgr.get_session(address) is None
+
+    def test_grant_has_revoke_role(self):
+        mgr = self._make_manager()
+        address = "0xROLE"
+        mgr.grant_role(address, "instructor")
+        assert mgr.has_role(address, "instructor")
+        mgr.revoke_role(address, "instructor")
+        assert not mgr.has_role(address, "instructor")
+
+    def test_list_roles(self):
+        mgr = self._make_manager()
+        address = "0xROLES"
+        mgr.grant_role(address, "participant")
+        mgr.grant_role(address, "admin")
+        roles = mgr.list_roles(address)
+        assert sorted(roles) == ["admin", "participant"]
+
+
+# ---------------------------------------------------------------------------
+# TokenRegistry
+# ---------------------------------------------------------------------------
+
+
+class TestTokenRegistry:
+    def _make_registry(self):
+        from web3.wallet_auth import TokenRegistry
+        return TokenRegistry()
+
+    def test_mint_increases_balance(self):
+        reg = self._make_registry()
+        new_bal = reg.mint("0xADDR", "workshop_completion")
+        assert new_bal == 1
+        assert reg.balance("0xADDR", "workshop_completion") == 1
+
+    def test_mint_multiple(self):
+        reg = self._make_registry()
+        reg.mint("0xADDR", "streak_bonus", 5)
+        assert reg.balance("0xADDR", "streak_bonus") == 5
+
+    def test_burn_decreases_balance(self):
+        reg = self._make_registry()
+        reg.mint("0xADDR", "assignment_pass", 3)
+        new_bal = reg.burn("0xADDR", "assignment_pass", 2)
+        assert new_bal == 1
+
+    def test_burn_insufficient_raises(self):
+        reg = self._make_registry()
+        reg.mint("0xADDR", "peer_review", 1)
+        with pytest.raises(ValueError, match="Insufficient balance"):
+            reg.burn("0xADDR", "peer_review", 5)
+
+    def test_mint_invalid_amount_raises(self):
+        reg = self._make_registry()
+        with pytest.raises(ValueError):
+            reg.mint("0xADDR", "tok", 0)
+
+    def test_portfolio(self):
+        reg = self._make_registry()
+        reg.mint("0xADDR", "tok_a", 2)
+        reg.mint("0xADDR", "tok_b", 3)
+        portfolio = reg.portfolio("0xADDR")
+        assert portfolio == {"tok_a": 2, "tok_b": 3}
+
+    def test_transfer(self):
+        reg = self._make_registry()
+        reg.mint("0xSENDER", "workshop_completion", 5)
+        reg.transfer("0xSENDER", "0xRECEIVER", "workshop_completion", 2)
+        assert reg.balance("0xSENDER", "workshop_completion") == 3
+        assert reg.balance("0xRECEIVER", "workshop_completion") == 2
+
+    def test_callback_invoked(self):
+        events = []
+        from web3.wallet_auth import TokenRegistry
+        reg = TokenRegistry(on_chain_callback=lambda a, t, d: events.append((a, t, d)))
+        reg.mint("0xA", "tok", 1)
+        assert len(events) == 1
+        assert events[0] == ("0xa", "tok", 1)
+
+
+# ---------------------------------------------------------------------------
+# SandboxAgent
+# ---------------------------------------------------------------------------
+
+
+class TestSandboxAgent:
+    def _make_agent(self):
+        from agents.sandbox_agent import SandboxAgent
+        with patch("agents.base_agent.OpenAI"):
+            return SandboxAgent()
+
+    def test_provision_success(self):
+        agent = self._make_agent()
+        result = agent.run({
+            "action": "provision",
+            "owner_address": "0xPARTICIPANT",
+            "modules": ["coding", "ai_experimentation"],
+        })
+        assert result["status"] == "ok"
+        assert result["sandbox"]["status"] == "running"
+        assert "coding" in result["sandbox"]["modules"]
+
+    def test_provision_missing_address(self):
+        agent = self._make_agent()
+        result = agent.run({"action": "provision"})
+        assert result["status"] == "error"
+
+    def test_terminate_success(self):
+        agent = self._make_agent()
+        prov = agent.run({
+            "action": "provision",
+            "owner_address": "0xUSER",
+        })
+        sid = prov["sandbox"]["sandbox_id"]
+        result = agent.run({"action": "terminate", "sandbox_id": sid})
+        assert result["status"] == "ok"
+        assert agent.get_sandbox(sid) is None
+
+    def test_terminate_unknown_sandbox(self):
+        agent = self._make_agent()
+        result = agent.run({"action": "terminate", "sandbox_id": "nonexistent"})
+        assert result["status"] == "error"
+
+    @patch("agents.base_agent.OpenAI")
+    def test_assist_returns_answer(self, mock_openai_cls):
+        mock_client = MagicMock()
+        mock_openai_cls.return_value = mock_client
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content="Here is the answer"))]
+        )
+        from agents.sandbox_agent import SandboxAgent
+        agent = SandboxAgent()
+        result = agent.run({
+            "action": "assist",
+            "sandbox_id": "sb001",
+            "question": "How do I train a neural net?",
+        })
+        assert result["status"] == "ok"
+        assert "answer" in result
+        assert "Here is the answer" in result["answer"]
+
+    def test_assist_missing_question(self):
+        agent = self._make_agent()
+        result = agent.run({"action": "assist", "sandbox_id": "sb001"})
+        assert result["status"] == "error"
+
+    def test_unknown_action(self):
+        agent = self._make_agent()
+        result = agent.run({"action": "fly_to_moon"})
+        assert result["status"] == "error"
+
+    def test_list_sandboxes(self):
+        agent = self._make_agent()
+        agent.run({"action": "provision", "owner_address": "0xA"})
+        agent.run({"action": "provision", "owner_address": "0xB"})
+        sandboxes = agent.list_sandboxes()
+        assert len(sandboxes) == 2
+
+
+# ---------------------------------------------------------------------------
+# WorkshopAgent
+# ---------------------------------------------------------------------------
+
+
+class TestWorkshopAgent:
+    def _make_agent(self):
+        from agents.workshop_agent import WorkshopAgent
+        with patch("agents.base_agent.OpenAI"):
+            return WorkshopAgent()
+
+    def test_list_templates(self):
+        agent = self._make_agent()
+        result = agent.run({"action": "list_templates"})
+        assert result["status"] == "ok"
+        assert result["count"] >= 4
+        names = [t["name"] for t in result["templates"]]
+        assert "intro-to-ai" in names
+        assert "blockchain-dev" in names
+
+    def test_load_template_success(self):
+        agent = self._make_agent()
+        result = agent.run({
+            "action": "load_template",
+            "template_name": "intro-to-ai",
+        })
+        assert result["status"] == "ok"
+        assert result["template"]["difficulty"] == "beginner"
+
+    def test_load_template_not_found(self):
+        agent = self._make_agent()
+        result = agent.run({
+            "action": "load_template",
+            "template_name": "nonexistent",
+        })
+        assert result["status"] == "error"
+
+    def test_load_template_missing_name(self):
+        agent = self._make_agent()
+        result = agent.run({"action": "load_template"})
+        assert result["status"] == "error"
+
+    @patch("agents.base_agent.OpenAI")
+    def test_grade_success(self, mock_openai_cls):
+        import json as _json
+        grading_payload = {
+            "score": 85,
+            "grade": "B",
+            "strengths": ["Clean code"],
+            "improvements": ["Add docstrings"],
+            "feedback": "Good job overall.",
+            "copilot_hint": "Consider using list comprehensions.",
+        }
+        mock_client = MagicMock()
+        mock_openai_cls.return_value = mock_client
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content=_json.dumps(grading_payload)))]
+        )
+        from agents.workshop_agent import WorkshopAgent
+        agent = WorkshopAgent()
+        result = agent.run({
+            "action": "grade",
+            "submission": "def add(a, b): return a + b",
+        })
+        assert result["status"] == "ok"
+        assert result["grading"]["score"] == 85
+        assert result["grading"]["grade"] == "B"
+
+    def test_grade_missing_submission(self):
+        agent = self._make_agent()
+        result = agent.run({"action": "grade"})
+        assert result["status"] == "error"
+
+    @patch("agents.base_agent.OpenAI")
+    def test_assist_success(self, mock_openai_cls):
+        mock_client = MagicMock()
+        mock_openai_cls.return_value = mock_client
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content="Use a for-loop."))]
+        )
+        from agents.workshop_agent import WorkshopAgent
+        agent = WorkshopAgent()
+        result = agent.run({
+            "action": "assist",
+            "question": "How do I iterate over a list?",
+            "skill_level": "beginner",
+        })
+        assert result["status"] == "ok"
+        assert "Use a for-loop." in result["answer"]
+
+    def test_assist_missing_question(self):
+        agent = self._make_agent()
+        result = agent.run({"action": "assist"})
+        assert result["status"] == "error"
+
+    @patch("agents.base_agent.OpenAI")
+    def test_task_guide_success(self, mock_openai_cls):
+        mock_client = MagicMock()
+        mock_openai_cls.return_value = mock_client
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content="# Task Guide\n1. Step one"))]
+        )
+        from agents.workshop_agent import WorkshopAgent
+        agent = WorkshopAgent()
+        result = agent.run({
+            "action": "task_guide",
+            "topic": "smart contracts",
+            "skill_level": "intermediate",
+        })
+        assert result["status"] == "ok"
+        assert "guide" in result
+        assert "Task Guide" in result["guide"]
+
+    def test_task_guide_missing_topic(self):
+        agent = self._make_agent()
+        result = agent.run({"action": "task_guide"})
+        assert result["status"] == "error"
+
+    def test_unknown_action(self):
+        agent = self._make_agent()
+        result = agent.run({"action": "bake_cake"})
+        assert result["status"] == "error"
