@@ -18,6 +18,7 @@ Chatlippytm.ai.Bots is a **Full Stack AI DevOps Synthetic Intelligence Engine** 
 | Auto issue triage & labelling | `IssueTriageAgent` | Every new issue |
 | Security vulnerability scanning | `SecurityAgent` | Daily + every push |
 | Training data collection & fine-tuning | `TrainerAgent` | Every push to `main` |
+| **AI BrainKit distribution** | `BrainKitAgent` | On demand / workflow dispatch |
 
 All workflows run automatically through **GitHub Actions**. No manual steps required once the secrets are configured.
 
@@ -30,6 +31,7 @@ Chatlippytm.ai.Bots/
 │
 ├── agents/                   # Specialist AI agents
 │   ├── base_agent.py         # Abstract base (OpenAI client, retry logic)
+│   ├── brainkit_agent.py     # BrainKit workflow distributor
 │   ├── code_review_agent.py  # PR code reviewer
 │   ├── repo_scanner_agent.py # Repository health scanner
 │   ├── trainer_agent.py      # Training data collector
@@ -125,6 +127,77 @@ swarm.register(RepoScannerAgent())
 
 results = swarm.run_all(repos=["lippytm/Chatlippytm.ai.Bots"])
 ```
+
+---
+
+## AI BrainKit – Distribute to All Repositories
+
+The `BrainKitAgent` packages the five core AI workflows into a portable
+**BrainKit** and installs them into any GitHub repository with a single
+command.  Each target repo gets:
+
+| File installed | Purpose |
+|---|---|
+| `.github/workflows/ai-pr-review.yml` | AI code review on every PR |
+| `.github/workflows/ai-security-scan.yml` | Daily + push security scan |
+| `.github/workflows/ai-issue-triage.yml` | Auto-triage every new issue |
+| `.github/workflows/ai-repo-health.yml` | Weekly health report |
+| `.github/workflows/auto-train.yml` | Push-triggered training pipeline |
+| `.github/brainkit.yaml` | BrainKit configuration |
+
+### Install BrainKit via CLI
+
+```bash
+# Install all five workflows into two repositories
+python main.py brainkit \
+  --repos lippytm/repo-one,lippytm/repo-two
+
+# Install only the code-review and security workflows
+python main.py brainkit \
+  --repos lippytm/repo-one \
+  --workflows ai-pr-review,ai-security-scan
+
+# Preview what would be installed (no GitHub API calls)
+python main.py brainkit \
+  --repos lippytm/repo-one \
+  --dry-run
+```
+
+### Install BrainKit via Python API
+
+```python
+from agents import BrainKitAgent
+
+agent = BrainKitAgent()
+result = agent.run({
+    "repos": ["lippytm/repo-one", "lippytm/repo-two"],
+    "branch": "main",
+})
+print(result)
+```
+
+### Configure Target Repositories
+
+Edit `config/config.yaml` and add repositories to the `brainkit.targets`
+list, then run the swarm or the `brainkit` CLI command:
+
+```yaml
+brainkit:
+  targets:
+    - lippytm/repo-one
+    - lippytm/repo-two
+  default_branch: main
+  workflows:
+    - ai-pr-review
+    - ai-security-scan
+    - ai-issue-triage
+    - ai-repo-health
+    - auto-train
+```
+
+> **Required secrets** – each target repository must have `OPENAI_API_KEY`
+> configured in its **Settings → Secrets and variables → Actions** for the
+> installed workflows to run.
 
 ---
 
