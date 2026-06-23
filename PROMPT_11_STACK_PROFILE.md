@@ -6,6 +6,17 @@ This file tracks the known technology and learning stack for Chatlippytm.ai.Bots
 
 `lippytm/Chatlippytm.ai.Bots`
 
+## Separation Rule
+
+This repository is **Chatlippytm.ai.Bots**. It must remain separate from any Claw, Clawlippytm, OpenClaw, or ClawBase44 repositories.
+
+Do not merge this profile, evidence trail, workflow plan, CRM path, or Prompt #11 review status with:
+
+- `lippytm/Clawlippytm.Bots`
+- `lippytm/Clawlippytm.ai.Bots`
+- `lippytm/OpenClaw-lippytm.AI-`
+- `lippytm/ClawBase44.ai.Bots`
+
 ## Current Stack Status
 
 Known stack: reviewed from README and requirements evidence.
@@ -97,4 +108,4 @@ This repo touches GitHub automation, OpenAI API calls, issue triage, repository 
 
 ## Next Action
 
-Move this repo to `needs-review`, then validate the CLI, tests, config, workflows, and automation safety boundaries.
+Continue validating **Chatlippytm.ai.Bots only**: CLI, tests, config, workflows, and automation safety boundaries.
