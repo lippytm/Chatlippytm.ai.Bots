@@ -4,6 +4,7 @@ Full Stack AI DevOps Synthetic Intelligence Engine
 """
 
 from .base_agent import BaseAgent
+from .brainkit_agent import BrainKitAgent
 from .code_review_agent import CodeReviewAgent
 from .repo_scanner_agent import RepoScannerAgent
 from .trainer_agent import TrainerAgent
@@ -14,6 +15,7 @@ from .sandbox_agent import SandboxAgent
 
 __all__ = [
     "BaseAgent",
+    "BrainKitAgent",
     "CodeReviewAgent",
     "RepoScannerAgent",
     "TrainerAgent",

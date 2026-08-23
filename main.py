@@ -76,6 +76,7 @@ def cli(verbose: bool) -> None:
 def swarm_cmd(repos: str, agents: str, workers: int, output: str | None) -> None:
     """Launch the AI agent swarm across target repositories."""
     from agents import (
+        BrainKitAgent,
         CodeReviewAgent,
         IssueTriageAgent,
         RepoScannerAgent,
@@ -87,6 +88,7 @@ def swarm_cmd(repos: str, agents: str, workers: int, output: str | None) -> None
     from swarm import Swarm
 
     agent_map = {
+        "BrainKitAgent": BrainKitAgent,
         "CodeReviewAgent": CodeReviewAgent,
         "SecurityAgent": SecurityAgent,
         "RepoScannerAgent": RepoScannerAgent,
@@ -333,6 +335,127 @@ def workshop_cmd(
         with open(output, "w", encoding="utf-8") as fh:
             _json.dump(result, fh, indent=2)
         console.print(f"[green]Result written to {output}[/green]")
+
+
+# ---------------------------------------------------------------------------
+# brainkit command
+# ---------------------------------------------------------------------------
+
+
+@cli.command("brainkit")
+@click.option(
+    "--repos",
+    required=True,
+    help="Comma-separated list of owner/repo targets to install the BrainKit into.",
+)
+@click.option(
+    "--workflows",
+    default=None,
+    show_default=True,
+    help=(
+        "Comma-separated workflow names to install.  "
+        "Defaults to all five: ai-pr-review, ai-security-scan, "
+        "ai-issue-triage, ai-repo-health, auto-train."
+    ),
+)
+@click.option(
+    "--branch",
+    default="main",
+    show_default=True,
+    help="Branch to commit the BrainKit files to.",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Preview what would be installed without making any GitHub API calls.",
+)
+@click.option("--output", default=None, help="Write JSON results to this file.")
+def brainkit_cmd(
+    repos: str,
+    workflows: str | None,
+    branch: str,
+    dry_run: bool,
+    output: str | None,
+) -> None:
+    """Install the Chatlippytm AI BrainKit into one or more GitHub repositories."""
+    from agents import BrainKitAgent
+
+    repo_list = [r.strip() for r in repos.split(",") if r.strip()]
+
+    workflow_list = (
+        [w.strip() for w in workflows.split(",") if w.strip()]
+        if workflows
+        else BrainKitAgent.available_workflows()
+    )
+
+    console.print(
+        Panel.fit(
+            f"[bold green]AI BrainKit Installer[/bold green]\n"
+            f"Targets   : {', '.join(repo_list)}\n"
+            f"Workflows : {', '.join(workflow_list)}\n"
+            f"Branch    : {branch}\n"
+            f"Dry run   : {dry_run}",
+            title="🧠 BrainKit",
+        )
+    )
+
+    agent = BrainKitAgent()
+    result = agent.run(
+        {
+            "repos": repo_list,
+            "workflows": workflow_list,
+            "branch": branch,
+            "dry_run": dry_run,
+        }
+    )
+
+    if result.get("status") == "error":
+        console.print(f"[red]Error: {result.get('message')}[/red]")
+        sys.exit(1)
+
+    table = Table(title="BrainKit Install Results", show_lines=True)
+    table.add_column("Repository")
+    table.add_column("Status")
+    table.add_column("Installed")
+    table.add_column("Skipped")
+    table.add_column("Errors")
+
+    for r in result.get("results", []):
+        status = r.get("status", "?")
+        color = {"ok": "green", "error": "red"}.get(status, "white")
+        if dry_run:
+            installed_str = "\n".join(r.get("files", []))
+            skipped_str = ""
+            errors_str = ""
+        else:
+            installed_str = "\n".join(r.get("installed", []))
+            skipped_str = "\n".join(r.get("skipped", []))
+            errors_str = "\n".join(r.get("errors", []))
+        table.add_row(
+            r.get("repo", ""),
+            f"[{color}]{status}[/{color}]",
+            installed_str or "—",
+            skipped_str or "—",
+            f"[red]{errors_str}[/red]" if errors_str else "—",
+        )
+
+    console.print(table)
+    console.print(
+        f"\n[bold]Repos processed:[/bold] {result.get('repos_processed', 0)}"
+        + (
+            f"  [bold]Installed:[/bold] {result.get('repos_installed', 0)}"
+            if not dry_run
+            else "  [yellow](dry run – no changes made)[/yellow]"
+        )
+    )
+
+    if output:
+        import json as _json
+
+        with open(output, "w", encoding="utf-8") as fh:
+            _json.dump(result, fh, indent=2)
+        console.print(f"[green]Results written to {output}[/green]")
 
 
 # ---------------------------------------------------------------------------

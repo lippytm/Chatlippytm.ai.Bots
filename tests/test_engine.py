@@ -626,3 +626,123 @@ class TestWorkshopAgent:
         agent = self._make_agent()
         result = agent.run({"action": "bake_cake"})
         assert result["status"] == "error"
+
+
+# ---------------------------------------------------------------------------
+# BrainKitAgent
+# ---------------------------------------------------------------------------
+
+
+class TestBrainKitAgent:
+    def _make_agent(self):
+        from agents.brainkit_agent import BrainKitAgent
+        with patch("agents.base_agent.OpenAI"):
+            return BrainKitAgent()
+
+    def test_missing_repos_returns_error(self):
+        agent = self._make_agent()
+        result = agent.run({})
+        assert result["status"] == "error"
+        assert "repos" in result["message"]
+
+    def test_unknown_workflow_returns_error(self):
+        agent = self._make_agent()
+        result = agent.run({
+            "repos": ["owner/repo"],
+            "workflows": ["nonexistent-workflow"],
+        })
+        assert result["status"] == "error"
+        assert "nonexistent-workflow" in result["message"]
+
+    def test_dry_run_reports_files_without_api_calls(self):
+        agent = self._make_agent()
+        result = agent.run({
+            "repos": ["owner/repo1", "owner/repo2"],
+            "dry_run": True,
+        })
+        assert result["status"] == "ok"
+        assert result["dry_run"] is True
+        assert result["repos_processed"] == 2
+        assert len(result["results"]) == 2
+        for r in result["results"]:
+            assert r["status"] == "ok"
+            assert r["dry_run"] is True
+            # All five workflows + the brainkit config
+            assert len(r["files"]) == 6
+
+    def test_dry_run_subset_of_workflows(self):
+        agent = self._make_agent()
+        result = agent.run({
+            "repos": ["owner/repo"],
+            "workflows": ["ai-pr-review", "ai-security-scan"],
+            "dry_run": True,
+        })
+        assert result["status"] == "ok"
+        files = result["results"][0]["files"]
+        assert ".github/workflows/ai-pr-review.yml" in files
+        assert ".github/workflows/ai-security-scan.yml" in files
+        # Brainkit config is always included
+        assert ".github/brainkit.yaml" in files
+        # Other workflows must not be present
+        assert ".github/workflows/auto-train.yml" not in files
+
+    def test_available_workflows_returns_all_five(self):
+        from agents.brainkit_agent import BrainKitAgent
+        workflows = BrainKitAgent.available_workflows()
+        assert len(workflows) == 5
+        assert "ai-pr-review" in workflows
+        assert "ai-security-scan" in workflows
+        assert "ai-issue-triage" in workflows
+        assert "ai-repo-health" in workflows
+        assert "auto-train" in workflows
+
+    def test_github_api_error_reported_per_repo(self):
+        """A GithubException on one repo is captured and does not abort others."""
+        from agents.brainkit_agent import BrainKitAgent
+        from github import GithubException
+
+        with patch("agents.base_agent.OpenAI"):
+            agent = BrainKitAgent()
+
+        mock_gh = MagicMock()
+        mock_gh.get_repo.side_effect = GithubException(404, "Not Found", {})
+
+        with patch("agents.brainkit_agent.Github", return_value=mock_gh):
+            result = agent.run({
+                "repos": ["owner/missing-repo"],
+                "dry_run": False,
+            })
+
+        assert result["repos_processed"] == 1
+        assert result["results"][0]["status"] == "error"
+        assert "Not Found" in result["results"][0]["message"]
+
+    def test_install_creates_new_files(self):
+        """Files that don't exist yet should be created via create_file."""
+        from agents.brainkit_agent import BrainKitAgent
+        from github import GithubException
+
+        with patch("agents.base_agent.OpenAI"):
+            agent = BrainKitAgent()
+
+        mock_repo = MagicMock()
+        # Simulate that get_contents raises (file doesn't exist) for every path
+        mock_repo.get_contents.side_effect = GithubException(404, "Not Found", {})
+        mock_repo.create_file.return_value = MagicMock()
+
+        mock_gh = MagicMock()
+        mock_gh.get_repo.return_value = mock_repo
+
+        with patch("agents.brainkit_agent.Github", return_value=mock_gh):
+            result = agent.run({
+                "repos": ["owner/new-repo"],
+                "workflows": ["ai-pr-review"],
+                "dry_run": False,
+            })
+
+        assert result["status"] == "ok"
+        r = result["results"][0]
+        assert r["status"] == "ok"
+        # ai-pr-review.yml + brainkit.yaml
+        assert len(r["installed"]) == 2
+        assert r["errors"] == []

@@ -37,6 +37,25 @@ repositories:
   targets: []
 
 # ---------------------------------------------------------------------------
+# AI BrainKit – portable workflow distribution
+# ---------------------------------------------------------------------------
+
+brainkit:
+  # Repositories that should receive the AI BrainKit workflows.
+  # The BrainKitAgent reads this list when invoked via the swarm or CLI.
+  # Format: owner/repo
+  targets: []
+  # Default branch to commit BrainKit files to in target repos
+  default_branch: main
+  # Workflows to install (comment out any you don't need)
+  workflows:
+    - ai-pr-review
+    - ai-security-scan
+    - ai-issue-triage
+    - ai-repo-health
+    - auto-train
+
+# ---------------------------------------------------------------------------
 # Web3 Workshop Platform
 # ---------------------------------------------------------------------------
 
