@@ -76,7 +76,7 @@ jobs:
             $SUBMIT_FLAG
 
       - name: Upload training artefacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: training-data-${{ github.run_number }}
           path: |
