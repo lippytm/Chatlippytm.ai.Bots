@@ -93,6 +93,19 @@ class TrainerAgent(BaseAgent):
                 message="No artefacts collected – skipping training data generation",
             )
 
+        if not self._api_key:
+            logger.warning(
+                "[%s] OPENAI_API_KEY is not set – skipping LLM synthesis for %s",
+                self.name,
+                repo_name,
+            )
+            return self._base_result(
+                "warning",
+                repo=repo_name,
+                message="OPENAI_API_KEY not set – training data synthesis skipped",
+                artefacts_processed=len(artefacts),
+            )
+
         logger.info(
             "[%s] Generating training examples from %d artefacts …",
             self.name,

@@ -44,13 +44,39 @@ class BaseAgent(ABC):
         self.max_tokens = max_tokens or int(os.getenv("TRAINING_MAX_TOKENS", "4096"))
         self.verbose = verbose or os.getenv("AGENT_VERBOSE", "false").lower() == "true"
 
-        self._client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        # Treat an empty string the same as absent so downstream guards work correctly.
+        self._api_key: str | None = os.getenv("OPENAI_API_KEY") or None
+        self._client: OpenAI | None = None
         self._conversation: list[dict[str, str]] = []
 
         logging.basicConfig(
             level=logging.DEBUG if self.verbose else logging.INFO,
             format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         )
+
+    # ------------------------------------------------------------------
+    # Properties
+    # ------------------------------------------------------------------
+
+    @property
+    def client(self) -> OpenAI:
+        """Return the OpenAI client, creating it on first access.
+
+        Raises
+        ------
+        EnvironmentError
+            When ``OPENAI_API_KEY`` is not set so callers receive a clear
+            message instead of a cryptic SDK error.
+        """
+        if self._api_key is None:
+            raise EnvironmentError(
+                "OPENAI_API_KEY is not set. "
+                "Configure the secret in your repository settings before "
+                "calling methods that require the OpenAI API."
+            )
+        if self._client is None:
+            self._client = OpenAI(api_key=self._api_key)
+        return self._client
 
     # ------------------------------------------------------------------
     # Public interface
@@ -97,7 +123,7 @@ class BaseAgent(ABC):
             {"role": "user", "content": user_message},
         ]
         logger.debug("[%s] Sending chat request …", self.name)
-        response = self._client.chat.completions.create(
+        response = self.client.chat.completions.create(
             model=self.model,
             messages=messages,
             temperature=self.temperature,
