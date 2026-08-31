@@ -519,10 +519,11 @@ class TestWorkshopAgent:
         agent = self._make_agent()
         result = agent.run({"action": "list_templates"})
         assert result["status"] == "ok"
-        assert result["count"] >= 4
+        assert result["count"] >= 5
         names = [t["name"] for t in result["templates"]]
         assert "intro-to-ai" in names
         assert "blockchain-dev" in names
+        assert "ai-clone-hermes-fabric-engines-swarms-systems-ai-copilot" in names
 
     def test_load_template_success(self):
         agent = self._make_agent()
@@ -532,6 +533,16 @@ class TestWorkshopAgent:
         })
         assert result["status"] == "ok"
         assert result["template"]["difficulty"] == "beginner"
+
+    def test_load_hermes_fabric_template_success(self):
+        agent = self._make_agent()
+        result = agent.run({
+            "action": "load_template",
+            "template_name": "ai-clone-hermes-fabric-engines-swarms-systems-ai-copilot",
+        })
+        assert result["status"] == "ok"
+        assert result["template"]["difficulty"] == "advanced"
+        assert "ai_experimentation" in result["template"]["modules"]
 
     def test_load_template_not_found(self):
         agent = self._make_agent()
