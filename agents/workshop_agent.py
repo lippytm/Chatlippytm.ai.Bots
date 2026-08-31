@@ -102,6 +102,25 @@ _TEMPLATES: dict[str, dict[str, Any]] = {
             "5. Deploying to the Chatlippytm AI swarm",
         ],
     },
+    "ai-clone-hermes-fabric-engines-swarms-systems-ai-copilot": {
+        "title": "AI Clone Hermes Fabric Engines Swarms Systems AI Copilot",
+        "description": (
+            "Design and build a multi-agent Copilot system that coordinates "
+            "AI clone identities using Hermes-style orchestration and swarm "
+            "fabric execution patterns."
+        ),
+        "modules": ["coding", "ai_experimentation"],
+        "duration_hours": 4,
+        "difficulty": "advanced",
+        "prerequisites": ["Python", "Prompt engineering", "Agent orchestration basics"],
+        "outline": [
+            "1. Define AI clone identities and role boundaries",
+            "2. Build Hermes fabric routing for agent-to-agent context handoff",
+            "3. Implement swarm engine execution and task fan-out/fan-in",
+            "4. Add Copilot assistance patterns for review, triage, and guidance",
+            "5. Validate system behavior with scenario-driven test runs",
+        ],
+    },
     "web3-ai-integration": {
         "title": "Web3 + AI Integration Workshop",
         "description": (
