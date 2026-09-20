@@ -1,0 +1,176 @@
+policy:
+  definition: >-
+    "AI Jarvis free and open source" in this repository means assistant capabilities
+    sourced from projects with clear, approved open-source licenses, separated into
+    named assistant categories, and excluded when they are closed-source,
+    unclear-license, or redundant with the orchestration, training, and security
+    features already owned by Chatlippytm.ai.Bots.
+  allowed_licenses:
+    - Apache-2.0
+    - BSD-3-Clause
+    - MIT
+    - MPL-2.0
+  excluded_conditions:
+    - closed-source
+    - proprietary or source-available only terms
+    - unclear, missing, or conflicting license metadata
+    - redundant with existing orchestration, training, or security capabilities
+  categories:
+    - voice
+    - memory
+    - agents
+    - automation
+    - ui
+    - integrations
+    - local_models
+    - home_device_control
+phases:
+  phase_1: Core assistant capabilities aligned to Jarvis-style workflows
+  phase_2: Tool-use and workflow automation
+  phase_3: Optional voice, local model, and device integrations
+  phase_4: Cross-repository rollout and governance
+capabilities:
+  - id: langchain
+    name: LangChain
+    category: agents
+    phase: phase_1
+    license: MIT
+    maturity: stable
+    runtime_requirements:
+      - Python 3.11+
+      - LLM provider credentials for runtime use
+    api_surface: Python package
+    fit: Reuses the repo's Python agent stack for tool-calling and orchestration.
+    integration_strategy: embed_directly
+    repo_role: shared_orchestration
+    owner_repo: lippytm/Chatlippytm.ai.Bots
+    enabled_by_default: true
+    source_url: https://github.com/langchain-ai/langchain
+  - id: chroma
+    name: Chroma
+    category: memory
+    phase: phase_1
+    license: Apache-2.0
+    maturity: stable
+    runtime_requirements:
+      - Python 3.11+
+      - Persistent storage for vector collections
+    api_surface: Python package and HTTP server
+    fit: Adds assistant memory without replacing the repo's training pipeline.
+    integration_strategy: wrap_as_service
+    repo_role: shared_memory
+    owner_repo: lippytm/Chatlippytm.ai.Bots
+    enabled_by_default: true
+    source_url: https://github.com/chroma-core/chroma
+  - id: fastapi
+    name: FastAPI
+    category: integrations
+    phase: phase_1
+    license: MIT
+    maturity: stable
+    runtime_requirements:
+      - Python 3.11+
+      - ASGI server for deployment
+    api_surface: Python package
+    fit: Exposes orchestrated assistant modules as APIs for other repos.
+    integration_strategy: embed_directly
+    repo_role: integration_gateway
+    owner_repo: lippytm/Chatlippytm.ai.Bots
+    enabled_by_default: true
+    source_url: https://github.com/fastapi/fastapi
+  - id: haystack
+    name: Haystack
+    category: agents
+    phase: phase_2
+    license: Apache-2.0
+    maturity: stable
+    runtime_requirements:
+      - Python 3.11+
+      - Search or document backends for retrieval use cases
+    api_surface: Python package
+    fit: Extends retrieval-heavy agent workflows where the repo needs document-grounded assistants.
+    integration_strategy: track_only
+    repo_role: optional_agent_runtime
+    owner_repo: lippytm/Chatlippytm.ai.Bots
+    enabled_by_default: false
+    source_url: https://github.com/deepset-ai/haystack
+  - id: node-red
+    name: Node-RED
+    category: automation
+    phase: phase_2
+    license: Apache-2.0
+    maturity: stable
+    runtime_requirements:
+      - Node.js runtime
+      - External flow deployment target
+    api_surface: Web UI and HTTP endpoints
+    fit: Covers visual workflow automation while this repo stays focused on orchestration policy.
+    integration_strategy: wrap_as_service
+    repo_role: automation_runtime
+    owner_repo: lippytm/Chatlippytm.ai.Bots
+    enabled_by_default: false
+    source_url: https://github.com/node-red/node-red
+  - id: open-webui
+    name: Open WebUI
+    category: ui
+    phase: phase_2
+    license: BSD-3-Clause
+    maturity: stable
+    runtime_requirements:
+      - Docker or Python deployment target
+      - Optional local model backend such as Ollama
+    api_surface: Web application and REST APIs
+    fit: Provides a front end while this repo remains the back-end orchestration hub.
+    integration_strategy: wrap_as_service
+    repo_role: assistant_ui
+    owner_repo: lippytm/Chatlippytm.ai.Bots
+    enabled_by_default: false
+    source_url: https://github.com/open-webui/open-webui
+  - id: whisper-cpp
+    name: whisper.cpp
+    category: voice
+    phase: phase_3
+    license: MIT
+    maturity: stable
+    runtime_requirements:
+      - C/C++ build toolchain or prebuilt binaries
+      - Local model files for speech recognition
+    api_surface: CLI, C/C++ library, bindings
+    fit: Adds offline speech-to-text as a voice edge service instead of bloating the hub repo.
+    integration_strategy: wrap_as_service
+    repo_role: voice_ingest
+    owner_repo: lippytm/Chatlippytm.ai.Bots
+    enabled_by_default: false
+    source_url: https://github.com/ggml-org/whisper.cpp
+  - id: ollama
+    name: Ollama
+    category: local_models
+    phase: phase_3
+    license: MIT
+    maturity: stable
+    runtime_requirements:
+      - Supported host for local model execution
+      - Downloaded local model artifacts
+    api_surface: CLI and local HTTP API
+    fit: Supplies local model execution to downstream Jarvis repos without changing the swarm core.
+    integration_strategy: wrap_as_service
+    repo_role: local_model_runtime
+    owner_repo: lippytm/Chatlippytm.ai.Bots
+    enabled_by_default: true
+    source_url: https://github.com/ollama/ollama
+  - id: home-assistant
+    name: Home Assistant
+    category: home_device_control
+    phase: phase_3
+    license: Apache-2.0
+    maturity: stable
+    runtime_requirements:
+      - Dedicated deployment target
+      - Connected devices and integration credentials
+    api_surface: Web UI, REST API, automation engine
+    fit: Provides device orchestration as an external service managed by this hub.
+    integration_strategy: wrap_as_service
+    repo_role: device_control_runtime
+    owner_repo: lippytm/Chatlippytm.ai.Bots
+    enabled_by_default: false
+    source_url: https://github.com/home-assistant/core

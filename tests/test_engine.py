@@ -12,6 +12,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from click.testing import CliRunner
 
 
 # ---------------------------------------------------------------------------
@@ -289,6 +290,156 @@ class TestTrainingPipeline:
         assert count == 1
         assert merged is not None
         assert merged.exists()
+
+
+# ---------------------------------------------------------------------------
+# Jarvis capability hub
+# ---------------------------------------------------------------------------
+
+
+class TestJarvisHub:
+    def test_validate_hub_definition(self):
+        from jarvis_hub import load_hub_config, validate_hub_definition
+
+        errors = validate_hub_definition(load_hub_config())
+        assert errors == []
+
+    def test_build_target_plan(self):
+        from jarvis_hub import build_target_plan, load_hub_config
+
+        plan = build_target_plan(load_hub_config(), repo="lippytm/Chatlippytm.ai.Bots")
+        assert plan["repo"] == "lippytm/Chatlippytm.ai.Bots"
+        assert any(item["id"] == "langchain" for item in plan["enabled_modules"])
+        assert any(item["id"] == "home-assistant" for item in plan["planned_modules"])
+
+    def test_build_target_plan_phase_filter(self):
+        from jarvis_hub import build_target_plan, load_hub_config
+
+        plan = build_target_plan(
+            load_hub_config(),
+            repo="lippytm/Chatlippytm.ai.Bots",
+            phase="phase_1",
+        )
+        assert {item["phase"] for item in plan["enabled_modules"]} == {"phase_1"}
+        assert plan["planned_modules"] == []
+
+    def test_build_target_template(self):
+        from jarvis_hub import build_target_template, load_hub_config
+
+        target = build_target_template(
+            load_hub_config(),
+            repo="lippytm/new-venture",
+            lane="commerce",
+            maturity="growth",
+            venture_tags=["subscriptions"],
+        )
+        assert target["repo"] == "lippytm/new-venture"
+        assert target["monetization"]["lane"] == "commerce"
+        assert target["monetization"]["maturity"] == "growth"
+        assert target["monetization"]["venture_tags"] == ["subscriptions"]
+
+
+class TestJarvisCLI:
+    def test_validate_command(self):
+        from main import cli
+
+        runner = CliRunner()
+        result = runner.invoke(cli, ["jarvis", "validate"])
+        assert result.exit_code == 0
+        assert "Jarvis capability registry is valid" in result.output
+
+    def test_inventory_json_command(self):
+        from main import cli
+
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            ["jarvis", "inventory", "--category", "agents", "--format", "json"],
+        )
+        assert result.exit_code == 0
+        assert "langchain" in result.output
+
+    def test_plan_unknown_repo_fails(self):
+        from main import cli
+
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            ["jarvis", "plan", "--repo", "lippytm/unknown-repo"],
+        )
+        assert result.exit_code == 1
+        assert "Managed target not found" in result.output
+
+    def test_bootstrap_target_command(self):
+        from main import cli
+
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            [
+                "jarvis",
+                "bootstrap-target",
+                "--repo",
+                "lippytm/new-venture",
+                "--lane",
+                "commerce",
+                "--venture-tag",
+                "subscriptions",
+            ],
+        )
+        assert result.exit_code == 0
+        assert "new-venture" in result.output
+        assert "commerce" in result.output
+
+    def test_monetize_command_with_template(self):
+        from main import cli
+
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            [
+                "jarvis",
+                "monetize",
+                "--repo",
+                "lippytm/new-venture",
+                "--use-template",
+                "--lane",
+                "revenue",
+            ],
+        )
+        assert result.exit_code == 0
+        assert "service packages" in result.output
+
+    def test_monetize_portfolio_command(self):
+        from main import cli
+
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            ["jarvis", "monetize-portfolio", "--format", "json"],
+        )
+        assert result.exit_code == 0
+        assert "platform enablement value" in result.output
+
+
+class TestMonetizationAgent:
+    def test_run_returns_monetization_plan(self):
+        from agents.monetization_agent import MonetizationAgent
+
+        agent = MonetizationAgent()
+        result = agent.run(
+            {
+                "repo": "owner/repo",
+                "lane": "commerce",
+                "maturity": "growth",
+                "capabilities": ["langchain", "ollama"],
+                "venture_tags": ["subscriptions"],
+            }
+        )
+
+        assert result["status"] == "ok"
+        assert result["value_role"] == "direct"
+        assert "subscriptions" in result["recommended_models"]
 
 
 # ---------------------------------------------------------------------------

@@ -23,6 +23,32 @@ All workflows run automatically through **GitHub Actions**. No manual steps requ
 
 ---
 
+## Jarvis Open-Source Orchestration Hub
+
+This repository is the control plane for Jarvis-style assistant capabilities across your assistant repositories.
+
+- Approved capabilities are curated in `/home/runner/work/Chatlippytm.ai.Bots/Chatlippytm.ai.Bots/config/jarvis_registry.yaml`
+- Managed target repositories and enabled modules are configured in `/home/runner/work/Chatlippytm.ai.Bots/Chatlippytm.ai.Bots/config/config.yaml`
+- The canonical capability matrix lives in `/home/runner/work/Chatlippytm.ai.Bots/Chatlippytm.ai.Bots/docs/AI_JARVIS_CAPABILITY_MATRIX.md`
+- Multi-repo defaults and monetization lanes let you reuse the same Jarvis hub across your business-of-businesses ventures
+
+Use the CLI to inspect and validate the hub:
+
+```bash
+python main.py jarvis policy
+python main.py jarvis inventory
+python main.py jarvis targets
+python main.py jarvis plan --repo lippytm/Chatlippytm.ai.Bots
+python main.py jarvis bootstrap-target --repo lippytm/your-next-repo --lane commerce --venture-tag subscriptions
+python main.py jarvis monetize --repo lippytm/your-next-repo --use-template --lane revenue
+python main.py jarvis monetize-portfolio
+python main.py jarvis validate
+```
+
+The hub only approves capabilities that have a clear open-source license, fit one of the assistant categories, and are not redundant with the repo's existing orchestration, training, or security features.
+
+---
+
 ## Architecture
 
 ```
@@ -46,7 +72,8 @@ Chatlippytm.ai.Bots/
 │   └── reports/              # Pipeline run reports (git-ignored)
 │
 ├── config/
-│   └── config.yaml           # Swarm, agent & pipeline configuration
+│   ├── config.yaml           # Swarm, agent, pipeline & Jarvis target configuration
+│   └── jarvis_registry.yaml  # Approved open-source Jarvis capability registry
 │
 ├── .github/workflows/
 │   ├── auto-train.yml        # Auto-training pipeline (push + weekly)
@@ -56,6 +83,7 @@ Chatlippytm.ai.Bots/
 │   └── ai-repo-health.yml    # Weekly health report
 │
 ├── main.py                   # CLI entry point
+├── jarvis_hub.py             # Jarvis capability registry/config loader
 ├── requirements.txt
 └── .env.example
 ```

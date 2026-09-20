@@ -1,0 +1,61 @@
+name: Jarvis Capability Registry
+
+on:
+  workflow_dispatch:
+    inputs:
+      repo:
+        description: "Managed target repo to plan"
+        required: false
+        default: "lippytm/Chatlippytm.ai.Bots"
+      phase:
+        description: "Optional phase filter (phase_1..phase_4)"
+        required: false
+        default: ""
+  push:
+    paths:
+      - "config/config.yaml"
+      - "config/jarvis_registry.yaml"
+      - "jarvis_hub.py"
+      - "main.py"
+      - "docs/AI_JARVIS_CAPABILITY_MATRIX.md"
+      - ".github/workflows/jarvis-capability-registry.yml"
+  pull_request:
+    paths:
+      - "config/config.yaml"
+      - "config/jarvis_registry.yaml"
+      - "jarvis_hub.py"
+      - "main.py"
+      - "docs/AI_JARVIS_CAPABILITY_MATRIX.md"
+      - ".github/workflows/jarvis-capability-registry.yml"
+
+jobs:
+  validate-jarvis-registry:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Validate Jarvis registry
+        run: python main.py jarvis validate
+
+      - name: Print inventory
+        run: python main.py jarvis inventory --format json
+
+      - name: Print managed target plan
+        run: |
+          PHASE="${{ github.event.inputs.phase }}"
+          if [ -n "$PHASE" ]; then
+            python main.py jarvis plan --repo "${{ github.event.inputs.repo }}" --phase "$PHASE" --format json
+          else
+            python main.py jarvis plan --repo "${{ github.event.inputs.repo }}" --format json
+          fi
