@@ -77,6 +77,9 @@ class TestBaseAgent:
     @patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}, clear=False)
     @patch("agents.base_agent.requests.Session")
     def test_chat_calls_anthropic_for_claude_models(self, mock_session_cls):
+        from agents import base_agent as base_agent_module
+
+        base_agent_module._build_anthropic_session.cache_clear()
         mock_session = MagicMock()
         mock_session.headers = {}
         mock_session_cls.return_value = mock_session
@@ -110,6 +113,9 @@ class TestBaseAgent:
     @patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}, clear=False)
     @patch("agents.base_agent.requests.Session")
     def test_explicit_provider_routes_to_anthropic(self, mock_session_cls):
+        from agents import base_agent as base_agent_module
+
+        base_agent_module._build_anthropic_session.cache_clear()
         mock_session = MagicMock()
         mock_session.headers = {}
         mock_session_cls.return_value = mock_session
@@ -139,6 +145,9 @@ class TestBaseAgent:
     )
     @patch("agents.base_agent.requests.Session")
     def test_env_provider_routes_to_anthropic(self, mock_session_cls):
+        from agents import base_agent as base_agent_module
+
+        base_agent_module._build_anthropic_session.cache_clear()
         mock_session = MagicMock()
         mock_session.headers = {}
         mock_session_cls.return_value = mock_session
@@ -164,6 +173,9 @@ class TestBaseAgent:
     @patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}, clear=False)
     @patch("agents.base_agent.requests.Session")
     def test_anthropic_http_error_retries(self, mock_session_cls):
+        from agents import base_agent as base_agent_module
+
+        base_agent_module._build_anthropic_session.cache_clear()
         mock_session = MagicMock()
         mock_session.headers = {}
         mock_session_cls.return_value = mock_session
@@ -186,6 +198,9 @@ class TestBaseAgent:
     @patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}, clear=False)
     @patch("agents.base_agent.requests.Session")
     def test_anthropic_accepts_string_content(self, mock_session_cls):
+        from agents import base_agent as base_agent_module
+
+        base_agent_module._build_anthropic_session.cache_clear()
         mock_session = MagicMock()
         mock_session.headers = {}
         mock_session_cls.return_value = mock_session
@@ -215,6 +230,18 @@ class TestBaseAgent:
 
         with pytest.raises(ValueError, match="Anthropic provider requires a Claude model"):
             _A(model="gpt-4o-mini", provider="anthropic")
+
+    def test_openai_provider_rejects_claude_models(self):
+        from agents.base_agent import BaseAgent
+
+        class _A(BaseAgent):
+            name = "A"
+            def run(self, ctx):
+                return self._base_result()
+
+        with patch("agents.base_agent.OpenAI"):
+            with pytest.raises(ValueError, match="OpenAI provider does not support Claude model"):
+                _A(model="claude-3-5-sonnet-latest", provider="openai")
 
 
 # ---------------------------------------------------------------------------

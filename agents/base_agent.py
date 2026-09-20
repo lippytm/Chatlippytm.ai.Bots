@@ -11,6 +11,7 @@ from __future__ import annotations
 import logging
 import os
 from abc import ABC, abstractmethod
+from functools import lru_cache
 from typing import Any
 
 import requests
@@ -21,6 +22,19 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 load_dotenv()
 
 logger = logging.getLogger(__name__)
+
+
+@lru_cache(maxsize=8)
+def _build_anthropic_session(api_key: str, version: str) -> requests.Session:
+    session = requests.Session()
+    session.headers.update(
+        {
+            "x-api-key": api_key,
+            "anthropic-version": version,
+            "content-type": "application/json",
+        }
+    )
+    return session
 
 
 class BaseAgent(ABC):
@@ -121,15 +135,10 @@ class BaseAgent(ABC):
                 base_url=os.getenv("OPENAI_BASE_URL"),
             )
         if self.provider == "anthropic":
-            session = requests.Session()
-            session.headers.update(
-                {
-                    "x-api-key": self._anthropic_api_key,
-                    "anthropic-version": os.getenv("ANTHROPIC_VERSION", "2023-06-01"),
-                    "content-type": "application/json",
-                }
+            return _build_anthropic_session(
+                self._anthropic_api_key,
+                os.getenv("ANTHROPIC_VERSION", "2023-06-01"),
             )
-            return session
         raise ValueError(f"Unsupported provider '{self.provider}'")
 
     def _validate_provider_model(self) -> None:
