@@ -167,3 +167,4 @@ See `.env.example` for all available settings.
 - Set `AGENT_PROVIDER=openai` or `AGENT_PROVIDER=anthropic` to choose the default model backend.
 - Claude models are also auto-detected when `AGENT_MODEL` starts with `claude`.
 - Use `ANTHROPIC_API_KEY` for Claude and `OPENAI_API_KEY` for OpenAI-backed agents.
+- If you set `ANTHROPIC_BASE_URL`, use the Anthropic API root URL, not the full `/v1/messages` endpoint.

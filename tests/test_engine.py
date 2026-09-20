@@ -95,6 +95,14 @@ class TestBaseAgent:
         assert result == "claude reply"
         assert agent.provider == "anthropic"
         mock_post.assert_called_once()
+        args, kwargs = mock_post.call_args
+        assert args[0] == "https://api.anthropic.com/v1/messages"
+        assert kwargs["headers"]["x-api-key"] == "test-key"
+        assert kwargs["headers"]["anthropic-version"] == "2023-06-01"
+        assert kwargs["json"]["model"] == "claude-3-5-sonnet-latest"
+        assert kwargs["json"]["system"] == "system"
+        assert kwargs["json"]["messages"] == [{"role": "user", "content": "user"}]
+        assert kwargs["timeout"] == 60
 
 
 # ---------------------------------------------------------------------------
