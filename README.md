@@ -41,6 +41,7 @@ python main.py jarvis targets
 python main.py jarvis plan --repo lippytm/Chatlippytm.ai.Bots
 python main.py jarvis bootstrap-target --repo lippytm/your-next-repo --lane commerce --venture-tag subscriptions
 python main.py jarvis monetize --repo lippytm/your-next-repo --use-template --lane revenue
+python main.py jarvis monetize-portfolio
 python main.py jarvis validate
 ```
 

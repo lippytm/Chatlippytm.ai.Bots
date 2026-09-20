@@ -391,11 +391,9 @@ class TestJarvisCLI:
         assert "new-venture" in result.output
         assert "commerce" in result.output
 
-    @patch("agents.base_agent.OpenAI")
-    def test_monetize_command_with_template(self, mock_openai_cls):
+    def test_monetize_command_with_template(self):
         from main import cli
 
-        mock_openai_cls.return_value = MagicMock()
         runner = CliRunner()
         result = runner.invoke(
             cli,
@@ -412,11 +410,20 @@ class TestJarvisCLI:
         assert result.exit_code == 0
         assert "service packages" in result.output
 
+    def test_monetize_portfolio_command(self):
+        from main import cli
+
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            ["jarvis", "monetize-portfolio", "--format", "json"],
+        )
+        assert result.exit_code == 0
+        assert "platform enablement value" in result.output
+
 
 class TestMonetizationAgent:
-    @patch("agents.base_agent.OpenAI")
-    def test_run_returns_monetization_plan(self, mock_openai_cls):
-        mock_openai_cls.return_value = MagicMock()
+    def test_run_returns_monetization_plan(self):
         from agents.monetization_agent import MonetizationAgent
 
         agent = MonetizationAgent()

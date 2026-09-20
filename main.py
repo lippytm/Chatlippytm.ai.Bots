@@ -686,6 +686,61 @@ def jarvis_monetize_cmd(
     console.print_json(json.dumps(result))
 
 
+@jarvis_group.command("monetize-portfolio")
+@click.option("--phase", default=None, help="Optional phase filter.")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "json"], case_sensitive=False),
+    default="table",
+    show_default=True,
+    help="Output format.",
+)
+def jarvis_monetize_portfolio_cmd(phase: str | None, output_format: str) -> None:
+    """Generate monetization plans for all managed repositories."""
+    from agents.monetization_agent import MonetizationAgent
+    from jarvis_hub import build_target_plan, load_hub_config, targets_from_config
+
+    hub = load_hub_config()
+    agent = MonetizationAgent()
+    results: list[dict] = []
+    for target in targets_from_config(hub["config"]):
+        plan = build_target_plan(hub, repo=target.repo, phase=phase)
+        results.append(
+            agent.run(
+                {
+                    "repo": target.repo,
+                    "lane": plan["monetization"]["lane"],
+                    "maturity": plan["monetization"]["maturity"],
+                    "capabilities": [
+                        item["id"] for item in plan["enabled_modules"] + plan["planned_modules"]
+                    ],
+                    "venture_tags": plan["monetization"]["venture_tags"],
+                }
+            )
+        )
+
+    if output_format == "json":
+        console.print_json(json.dumps(results))
+        return
+
+    table = Table(title="Jarvis Portfolio Monetization", show_lines=True)
+    table.add_column("Repo", style="cyan")
+    table.add_column("Lane")
+    table.add_column("Maturity")
+    table.add_column("Value Role")
+    table.add_column("Recommended Models")
+    for result in results:
+        table.add_row(
+            result.get("repo", ""),
+            result.get("lane", ""),
+            result.get("maturity", ""),
+            result.get("value_role", ""),
+            ", ".join(result.get("recommended_models", [])),
+        )
+    console.print(table)
+
+
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

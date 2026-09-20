@@ -55,7 +55,8 @@ Use the shared template when bringing Jarvis capabilities into a new repo:
 2. Add the repo to `repositories.targets` and paste the generated target into `jarvis.managed_targets`.
 3. Run `python main.py jarvis plan --repo owner/repo` to confirm the enabled and planned module stack.
 4. Run `python main.py jarvis monetize --repo owner/repo` to map the selected capabilities into monetization models for that venture.
-5. Promote the repo through phases as its business maturity increases.
+5. Run `python main.py jarvis monetize-portfolio` to review monetization recommendations across all managed repositories.
+6. Promote the repo through phases as its business maturity increases.
 
 ## CLI and workflow entry points
 
@@ -68,6 +69,7 @@ python main.py jarvis targets
 python main.py jarvis plan --repo lippytm/Chatlippytm.ai.Bots
 python main.py jarvis bootstrap-target --repo lippytm/venture-repo --lane product --venture-tag white-label
 python main.py jarvis monetize --repo lippytm/venture-repo --use-template --lane commerce
+python main.py jarvis monetize-portfolio
 python main.py jarvis validate
 ```
 
