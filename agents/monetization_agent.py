@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Any, Dict, List
 
@@ -18,6 +19,17 @@ class MonetizationAgent(BaseAgent):
     name = "MonetizationAgent"
     role = "monetization"
     description = "Maps assistant capabilities to monetization lanes and offers."
+
+    def __init__(self, verbose: bool = False) -> None:
+        self.model = "rules"
+        self.temperature = 0.0
+        self.max_tokens = 0
+        self.verbose = verbose
+        self._conversation: list[dict[str, str]] = []
+        logging.basicConfig(
+            level=logging.DEBUG if self.verbose else logging.INFO,
+            format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        )
 
     def recommend_models(self, task: MonetizationTask) -> List[str]:
         lane = task.lane
