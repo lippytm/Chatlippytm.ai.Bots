@@ -171,6 +171,24 @@ class TestBaseAgent:
             agent.chat("system", "user")
         assert mock_post.call_count == 3
 
+    @patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}, clear=False)
+    @patch("agents.base_agent.requests.post")
+    def test_anthropic_accepts_string_content(self, mock_post):
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"content": "plain text reply"}
+        mock_post.return_value = mock_response
+
+        from agents.base_agent import BaseAgent
+
+        class _A(BaseAgent):
+            name = "A"
+            def run(self, ctx):
+                return self._base_result()
+
+        agent = _A(model="claude-3-5-sonnet-latest")
+        result = agent.chat("system", "user")
+        assert result == "plain text reply"
+
 
 # ---------------------------------------------------------------------------
 # CodeReviewAgent

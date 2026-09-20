@@ -170,11 +170,20 @@ class BaseAgent(ABC):
         response.raise_for_status()
         payload = response.json()
         content_blocks = payload.get("content", [])
-        content = "".join(
-            block.get("text", "")
-            for block in content_blocks
-            if isinstance(block, dict) and block.get("type") == "text"
-        )
+        content_parts: list[str] = []
+
+        if isinstance(content_blocks, str):
+            content_parts.append(content_blocks)
+        elif isinstance(content_blocks, list):
+            for block in content_blocks:
+                if isinstance(block, str):
+                    content_parts.append(block)
+                elif isinstance(block, dict):
+                    text = block.get("text") or block.get("content")
+                    if isinstance(text, str):
+                        content_parts.append(text)
+
+        content = "".join(content_parts)
         if not content:
             raise ValueError("Anthropic response did not contain any text content")
         logger.debug("[%s] Received Anthropic response (%d chars)", self.name, len(content))
