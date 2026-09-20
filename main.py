@@ -259,6 +259,39 @@ def triage_cmd(repo: str, issue: int) -> None:
 
 
 # ---------------------------------------------------------------------------
+# jarvis command
+# ---------------------------------------------------------------------------
+
+
+@cli.command("jarvis")
+@click.option("--message", required=True, help="Prompt to send to the Jarvis assistant.")
+@click.option("--context", default=None, help="Optional extra context for the assistant.")
+@click.option("--output", default=None, help="Write JSON result to this file.")
+def jarvis_cmd(message: str, context: str | None, output: str | None) -> None:
+    """Send a prompt to the Jarvis assistant."""
+    import json as _json
+
+    from agents import JarvisAssistantAgent
+
+    agent = JarvisAssistantAgent()
+    result = agent.run({"message": message, "context": context})
+
+    if result.get("status") == "error":
+        console.print(f"[red]Error: {result.get('message')}[/red]")
+        sys.exit(1)
+
+    console.print(Panel(
+        _json.dumps(result, indent=2),
+        title="🧠 Jarvis Assistant",
+    ))
+
+    if output:
+        with open(output, "w", encoding="utf-8") as fh:
+            _json.dump(result, fh, indent=2)
+        console.print(f"[green]Result written to {output}[/green]")
+
+
+# ---------------------------------------------------------------------------
 # workshop command
 # ---------------------------------------------------------------------------
 

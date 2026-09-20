@@ -9,7 +9,7 @@ An AI Hub for Building Business of businesses. Another project place for "The En
 
 ## Overview
 
-Chatlippytm.ai.Bots is a **Full Stack AI DevOps Synthetic Intelligence Engine** built on OpenAI GPT-4o and the GitHub API. It deploys a coordinated **swarm** of specialised AI agents that:
+Chatlippytm.ai.Bots is a **Full Stack AI DevOps Synthetic Intelligence Engine** built on OpenAI, Claude, and the GitHub API. It deploys a coordinated **swarm** of specialised AI agents that:
 
 | Capability | Agent | Trigger |
 |---|---|---|
@@ -71,6 +71,7 @@ In your GitHub repository -> **Settings -> Secrets and variables -> Actions**, a
 | Secret | Description |
 |---|---|
 | `OPENAI_API_KEY` | Your OpenAI API key |
+| `ANTHROPIC_API_KEY` | Your Claude / Anthropic API key (required for Claude models) |
 | `GITHUB_TOKEN` | Auto-provided by GitHub Actions |
 
 ### 2. Configure Target Repositories
@@ -98,6 +99,9 @@ python main.py swarm --repos lippytm/Chatlippytm.ai.Bots
 
 # Run the auto-training pipeline
 python main.py train --repos lippytm/Chatlippytm.ai.Bots
+
+# Talk directly to Jarvis
+python main.py jarvis --message "Help me connect Claude to this repo"
 
 # Security scan a repo
 python main.py scan --repo lippytm/Chatlippytm.ai.Bots
@@ -159,3 +163,7 @@ python -m pytest tests/ -v
 ## Environment Variables
 
 See `.env.example` for all available settings.
+
+- Set `AGENT_PROVIDER=openai` or `AGENT_PROVIDER=anthropic` to choose the default model backend.
+- Claude models are also auto-detected when `AGENT_MODEL` starts with `claude`.
+- Use `ANTHROPIC_API_KEY` for Claude and `OPENAI_API_KEY` for OpenAI-backed agents.

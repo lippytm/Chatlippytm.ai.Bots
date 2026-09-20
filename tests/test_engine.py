@@ -8,6 +8,7 @@ requiring real credentials.
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -72,6 +73,28 @@ class TestBaseAgent:
         result = agent.chat("system", "user")
         assert result == "review text"
         mock_client.chat.completions.create.assert_called_once()
+
+    @patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}, clear=False)
+    @patch("agents.base_agent.requests.post")
+    def test_chat_calls_anthropic_for_claude_models(self, mock_post):
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "content": [{"type": "text", "text": "claude reply"}]
+        }
+        mock_post.return_value = mock_response
+
+        from agents.base_agent import BaseAgent
+
+        class _A(BaseAgent):
+            name = "A"
+            def run(self, ctx):
+                return self._base_result()
+
+        agent = _A(model="claude-3-5-sonnet-latest")
+        result = agent.chat("system", "user")
+        assert result == "claude reply"
+        assert agent.provider == "anthropic"
+        mock_post.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
@@ -636,4 +659,38 @@ class TestWorkshopAgent:
     def test_unknown_action(self):
         agent = self._make_agent()
         result = agent.run({"action": "bake_cake"})
+        assert result["status"] == "error"
+
+
+# ---------------------------------------------------------------------------
+# JarvisAssistantAgent
+# ---------------------------------------------------------------------------
+
+
+class TestJarvisAssistantAgent:
+    def _make_agent(self):
+        from agents.jarvis_agent import JarvisAssistantAgent
+        with patch("agents.base_agent.OpenAI"):
+            return JarvisAssistantAgent()
+
+    @patch("agents.base_agent.OpenAI")
+    def test_run_returns_response(self, mock_openai_cls):
+        mock_client = MagicMock()
+        mock_openai_cls.return_value = mock_client
+        mock_client.chat.completions.create.return_value = MagicMock(
+            choices=[MagicMock(message=MagicMock(content="Jarvis online"))]
+        )
+
+        from agents.jarvis_agent import JarvisAssistantAgent
+
+        agent = JarvisAssistantAgent()
+        result = agent.run({"message": "Hello Jarvis"})
+
+        assert result["status"] == "ok"
+        assert result["response"] == "Jarvis online"
+        assert result["provider"] == "openai"
+
+    def test_run_requires_message(self):
+        agent = self._make_agent()
+        result = agent.run({})
         assert result["status"] == "error"
