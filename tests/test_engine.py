@@ -104,6 +104,54 @@ class TestBaseAgent:
         assert kwargs["json"]["messages"] == [{"role": "user", "content": "user"}]
         assert kwargs["timeout"] == 60
 
+    @patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}, clear=False)
+    @patch("agents.base_agent.requests.post")
+    def test_explicit_provider_routes_to_anthropic(self, mock_post):
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "content": [{"type": "text", "text": "explicit provider reply"}]
+        }
+        mock_post.return_value = mock_response
+
+        from agents.base_agent import BaseAgent
+
+        class _A(BaseAgent):
+            name = "A"
+            def run(self, ctx):
+                return self._base_result()
+
+        agent = _A(model="gpt-4o-mini", provider="anthropic")
+        result = agent.chat("system", "user")
+        assert result == "explicit provider reply"
+        assert agent.provider == "anthropic"
+        mock_post.assert_called_once()
+
+    @patch.dict(
+        os.environ,
+        {"AGENT_PROVIDER": "anthropic", "ANTHROPIC_API_KEY": "test-key"},
+        clear=False,
+    )
+    @patch("agents.base_agent.requests.post")
+    def test_env_provider_routes_to_anthropic(self, mock_post):
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "content": [{"type": "text", "text": "env provider reply"}]
+        }
+        mock_post.return_value = mock_response
+
+        from agents.base_agent import BaseAgent
+
+        class _A(BaseAgent):
+            name = "A"
+            def run(self, ctx):
+                return self._base_result()
+
+        agent = _A(model="gpt-4o-mini")
+        result = agent.chat("system", "user")
+        assert result == "env provider reply"
+        assert agent.provider == "anthropic"
+        mock_post.assert_called_once()
+
 
 # ---------------------------------------------------------------------------
 # CodeReviewAgent

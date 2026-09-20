@@ -148,10 +148,6 @@ class BaseAgent(ABC):
             raise RuntimeError("ANTHROPIC_API_KEY is required for Anthropic provider")
 
         api_root = os.getenv("ANTHROPIC_BASE_URL", "https://api.anthropic.com").rstrip("/")
-        if api_root.endswith("/v1/messages"):
-            api_root = api_root.removesuffix("/v1/messages")
-        elif api_root.endswith("/v1"):
-            api_root = api_root.removesuffix("/v1")
         endpoint = f"{api_root}/v1/messages"
 
         logger.debug("[%s] Sending Anthropic request …", self.name)
