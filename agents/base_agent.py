@@ -111,7 +111,7 @@ class BaseAgent(ABC):
             return "anthropic"
         return "openai"
 
-    def _build_client(self) -> OpenAI | None:
+    def _build_client(self) -> Any:
         if self.provider == "openai":
             return OpenAI(
                 api_key=os.getenv("OPENAI_API_KEY"),
@@ -119,7 +119,15 @@ class BaseAgent(ABC):
                 base_url=os.getenv("OPENAI_BASE_URL"),
             )
         if self.provider == "anthropic":
-            return None
+            session = requests.Session()
+            session.headers.update(
+                {
+                    "x-api-key": os.getenv("ANTHROPIC_API_KEY", ""),
+                    "anthropic-version": os.getenv("ANTHROPIC_VERSION", "2023-06-01"),
+                    "content-type": "application/json",
+                }
+            )
+            return session
         raise ValueError(f"Unsupported provider '{self.provider}'")
 
     def _chat_with_openai(self, system_prompt: str, user_message: str) -> str:
@@ -129,8 +137,6 @@ class BaseAgent(ABC):
             {"role": "user", "content": user_message},
         ]
         logger.debug("[%s] Sending chat request …", self.name)
-        if self._client is None:
-            raise RuntimeError("OpenAI client is not configured")
         response = self._client.chat.completions.create(
             model=self.model,
             messages=messages,
@@ -143,21 +149,15 @@ class BaseAgent(ABC):
 
     def _chat_with_anthropic(self, system_prompt: str, user_message: str) -> str:
         """Call the Anthropic Messages API for Claude models."""
-        api_key = os.getenv("ANTHROPIC_API_KEY")
-        if not api_key:
-            raise RuntimeError("ANTHROPIC_API_KEY is required for Anthropic provider")
-
         api_root = os.getenv("ANTHROPIC_BASE_URL", "https://api.anthropic.com").rstrip("/")
         endpoint = f"{api_root}/v1/messages"
 
+        if not self._client.headers.get("x-api-key"):
+            raise RuntimeError("ANTHROPIC_API_KEY is required for Anthropic provider")
+
         logger.debug("[%s] Sending Anthropic request …", self.name)
-        response = requests.post(
+        response = self._client.post(
             endpoint,
-            headers={
-                "x-api-key": api_key,
-                "anthropic-version": os.getenv("ANTHROPIC_VERSION", "2023-06-01"),
-                "content-type": "application/json",
-            },
             json={
                 "model": self.model,
                 "system": system_prompt,

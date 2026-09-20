@@ -19,7 +19,7 @@ class JarvisAssistantAgent(BaseAgent):
     """Conversational assistant for direct user prompts."""
 
     name = "JarvisAssistantAgent"
-    description = "Direct Jarvis assistant for Claude or OpenAI-backed conversations"
+    description = "Direct Jarvis assistant using the configured model provider"
 
     def run(self, context: dict[str, Any]) -> dict[str, Any]:
         message = context.get("message") or context.get("question") or ""
