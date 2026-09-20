@@ -126,7 +126,7 @@ class TestBaseAgent:
             def run(self, ctx):
                 return self._base_result()
 
-        agent = _A(model="gpt-4o-mini", provider="anthropic")
+        agent = _A(model="claude-3-5-sonnet-latest", provider="anthropic")
         result = agent.chat("system", "user")
         assert result == "explicit provider reply"
         assert agent.provider == "anthropic"
@@ -155,7 +155,7 @@ class TestBaseAgent:
             def run(self, ctx):
                 return self._base_result()
 
-        agent = _A(model="gpt-4o-mini")
+        agent = _A(model="claude-3-5-sonnet-latest")
         result = agent.chat("system", "user")
         assert result == "env provider reply"
         assert agent.provider == "anthropic"
@@ -203,6 +203,18 @@ class TestBaseAgent:
         agent = _A(model="claude-3-5-sonnet-latest")
         result = agent.chat("system", "user")
         assert result == "plain text reply"
+
+    @patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}, clear=False)
+    def test_invalid_provider_model_combination_fails_fast(self):
+        from agents.base_agent import BaseAgent
+
+        class _A(BaseAgent):
+            name = "A"
+            def run(self, ctx):
+                return self._base_result()
+
+        with pytest.raises(ValueError, match="Anthropic provider requires a Claude model"):
+            _A(model="gpt-4o-mini", provider="anthropic")
 
 
 # ---------------------------------------------------------------------------

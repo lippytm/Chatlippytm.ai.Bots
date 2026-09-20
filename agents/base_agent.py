@@ -45,8 +45,10 @@ class BaseAgent(ABC):
         )
         self.max_tokens = max_tokens or int(os.getenv("TRAINING_MAX_TOKENS", "4096"))
         self.provider = self._resolve_provider(provider, self.model)
+        self._anthropic_api_key = os.getenv("ANTHROPIC_API_KEY", "")
         self.verbose = verbose or os.getenv("AGENT_VERBOSE", "false").lower() == "true"
 
+        self._validate_provider_model()
         self._client = self._build_client()
         self._conversation: list[dict[str, str]] = []
 
@@ -122,13 +124,24 @@ class BaseAgent(ABC):
             session = requests.Session()
             session.headers.update(
                 {
-                    "x-api-key": os.getenv("ANTHROPIC_API_KEY", ""),
+                    "x-api-key": self._anthropic_api_key,
                     "anthropic-version": os.getenv("ANTHROPIC_VERSION", "2023-06-01"),
                     "content-type": "application/json",
                 }
             )
             return session
         raise ValueError(f"Unsupported provider '{self.provider}'")
+
+    def _validate_provider_model(self) -> None:
+        model_name = self.model.lower()
+        if self.provider == "anthropic" and not model_name.startswith("claude"):
+            raise ValueError(
+                f"Anthropic provider requires a Claude model, got '{self.model}'"
+            )
+        if self.provider == "openai" and model_name.startswith("claude"):
+            raise ValueError(
+                f"OpenAI provider does not support Claude model '{self.model}'"
+            )
 
     def _chat_with_openai(self, system_prompt: str, user_message: str) -> str:
         """Call the OpenAI Chat Completions API."""
@@ -152,7 +165,7 @@ class BaseAgent(ABC):
         api_root = os.getenv("ANTHROPIC_BASE_URL", "https://api.anthropic.com").rstrip("/")
         endpoint = f"{api_root}/v1/messages"
 
-        if not self._client.headers.get("x-api-key"):
+        if not self._anthropic_api_key:
             raise RuntimeError("ANTHROPIC_API_KEY is required for Anthropic provider")
 
         logger.debug("[%s] Sending Anthropic request …", self.name)
