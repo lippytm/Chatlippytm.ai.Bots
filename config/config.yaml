@@ -41,6 +41,31 @@ jarvis:
   orchestration_hub: true
   registry_path: config/jarvis_registry.yaml
   policy_profile: permissive-open-source
+  default_target_template:
+    role: managed_assistant_repo
+    enabled_modules:
+      - langchain
+      - chroma
+      - fastapi
+      - ollama
+    planned_modules:
+      - haystack
+      - node-red
+      - open-webui
+      - whisper-cpp
+      - home-assistant
+    phases:
+      - phase_1
+      - phase_2
+      - phase_3
+      - phase_4
+    monetization:
+      lane: hub
+      maturity: prototype
+      venture_tags:
+        - services
+        - subscriptions
+        - licensing
   managed_targets:
     - repo: lippytm/Chatlippytm.ai.Bots
       role: orchestration_hub
@@ -60,6 +85,13 @@ jarvis:
         - phase_2
         - phase_3
         - phase_4
+      monetization:
+        lane: hub
+        maturity: production
+        venture_tags:
+          - business-of-businesses
+          - platform-enablement
+          - shared-services
 
 # ---------------------------------------------------------------------------
 # Web3 Workshop Platform

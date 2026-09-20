@@ -11,6 +11,7 @@ from .issue_triage_agent import IssueTriageAgent
 from .security_agent import SecurityAgent
 from .workshop_agent import WorkshopAgent
 from .sandbox_agent import SandboxAgent
+from .monetization_agent import MonetizationAgent
 
 __all__ = [
     "BaseAgent",
@@ -21,4 +22,5 @@ __all__ = [
     "SecurityAgent",
     "WorkshopAgent",
     "SandboxAgent",
+    "MonetizationAgent",
 ]

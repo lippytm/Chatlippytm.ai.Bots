@@ -42,6 +42,9 @@ class JarvisTarget:
     enabled_modules: list[str]
     planned_modules: list[str]
     phases: list[str]
+    monetization_lane: str
+    monetization_maturity: str
+    venture_tags: list[str]
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
@@ -102,6 +105,7 @@ def targets_from_config(config: dict[str, Any]) -> list[JarvisTarget]:
     jarvis = config.get("jarvis", {})
     targets: list[JarvisTarget] = []
     for raw in jarvis.get("managed_targets", []):
+        monetization = raw.get("monetization", {})
         targets.append(
             JarvisTarget(
                 repo=raw["repo"],
@@ -109,6 +113,9 @@ def targets_from_config(config: dict[str, Any]) -> list[JarvisTarget]:
                 enabled_modules=list(raw.get("enabled_modules", [])),
                 planned_modules=list(raw.get("planned_modules", [])),
                 phases=list(raw.get("phases", [])),
+                monetization_lane=monetization.get("lane", "hub"),
+                monetization_maturity=monetization.get("maturity", "prototype"),
+                venture_tags=list(monetization.get("venture_tags", [])),
             )
         )
     return targets
@@ -144,6 +151,8 @@ def validate_hub_definition(hub_data: dict[str, Any]) -> list[str]:
 
     if not jarvis.get("orchestration_hub"):
         errors.append("jarvis.orchestration_hub must be true.")
+    if not jarvis.get("default_target_template"):
+        errors.append("jarvis.default_target_template must be defined.")
 
     for target_repo in config.get("repositories", {}).get("targets", []):
         if not isinstance(target_repo, str) or "/" not in target_repo:
@@ -169,6 +178,18 @@ def validate_hub_definition(hub_data: dict[str, Any]) -> list[str]:
                 f"Capability '{capability.id}' uses unsupported strategy '{capability.integration_strategy}'."
             )
 
+    template = jarvis.get("default_target_template", {})
+    template_enabled = sorted(set(template.get("enabled_modules", [])) - capability_ids)
+    template_planned = sorted(set(template.get("planned_modules", [])) - capability_ids)
+    if template_enabled:
+        errors.append(
+            f"jarvis.default_target_template references unknown enabled modules: {', '.join(template_enabled)}"
+        )
+    if template_planned:
+        errors.append(
+            f"jarvis.default_target_template references unknown planned modules: {', '.join(template_planned)}"
+        )
+
     repository_targets = set(config.get("repositories", {}).get("targets", []))
     for target in targets_from_config(config):
         if target.repo not in repository_targets:
@@ -190,20 +211,67 @@ def validate_hub_definition(hub_data: dict[str, Any]) -> list[str]:
             errors.append(
                 f"Managed target '{target.repo}' overlaps enabled and planned modules: {', '.join(overlap)}"
             )
+        if not target.monetization_lane:
+            errors.append(f"Managed target '{target.repo}' must define monetization.lane.")
+        if not target.monetization_maturity:
+            errors.append(f"Managed target '{target.repo}' must define monetization.maturity.")
 
     return errors
+
+
+def build_target_template(
+    hub_data: dict[str, Any],
+    repo: str,
+    lane: str | None = None,
+    maturity: str | None = None,
+    venture_tags: list[str] | None = None,
+) -> dict[str, Any]:
+    template = dict(hub_data["jarvis"].get("default_target_template", {}))
+    monetization = dict(template.get("monetization", {}))
+    if lane:
+        monetization["lane"] = lane
+    if maturity:
+        monetization["maturity"] = maturity
+    if venture_tags is not None:
+        monetization["venture_tags"] = venture_tags
+    template["repo"] = repo
+    template["monetization"] = monetization
+    return template
 
 
 def build_target_plan(
     hub_data: dict[str, Any],
     repo: str,
     phase: str | None = None,
+    use_template: bool = False,
+    lane: str | None = None,
+    maturity: str | None = None,
+    venture_tags: list[str] | None = None,
 ) -> dict[str, Any]:
     registry = hub_data["registry"]
     capabilities = {cap.id: cap for cap in capabilities_from_registry(registry)}
     target = next((item for item in targets_from_config(hub_data["config"]) if item.repo == repo), None)
     if target is None:
-        raise ValueError(f"Managed target not found: {repo}")
+        if not use_template:
+            raise ValueError(f"Managed target not found: {repo}")
+        template = build_target_template(
+            hub_data,
+            repo=repo,
+            lane=lane,
+            maturity=maturity,
+            venture_tags=venture_tags,
+        )
+        template_monetization = template.get("monetization", {})
+        target = JarvisTarget(
+            repo=template["repo"],
+            role=template.get("role", "managed_assistant_repo"),
+            enabled_modules=list(template.get("enabled_modules", [])),
+            planned_modules=list(template.get("planned_modules", [])),
+            phases=list(template.get("phases", [])),
+            monetization_lane=template_monetization.get("lane", "hub"),
+            monetization_maturity=template_monetization.get("maturity", "prototype"),
+            venture_tags=list(template_monetization.get("venture_tags", [])),
+        )
 
     def _serialize(ids: list[str]) -> list[dict[str, Any]]:
         selected: list[dict[str, Any]] = []
@@ -235,6 +303,11 @@ def build_target_plan(
         "role": target.role,
         "phase_filter": phase,
         "phases": target.phases,
+        "monetization": {
+            "lane": target.monetization_lane,
+            "maturity": target.monetization_maturity,
+            "venture_tags": target.venture_tags,
+        },
         "enabled_modules": enabled,
         "planned_modules": planned,
         "covered_categories": covered_categories,

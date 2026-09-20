@@ -323,6 +323,21 @@ class TestJarvisHub:
         assert {item["phase"] for item in plan["enabled_modules"]} == {"phase_1"}
         assert plan["planned_modules"] == []
 
+    def test_build_target_template(self):
+        from jarvis_hub import build_target_template, load_hub_config
+
+        target = build_target_template(
+            load_hub_config(),
+            repo="lippytm/new-venture",
+            lane="commerce",
+            maturity="growth",
+            venture_tags=["subscriptions"],
+        )
+        assert target["repo"] == "lippytm/new-venture"
+        assert target["monetization"]["lane"] == "commerce"
+        assert target["monetization"]["maturity"] == "growth"
+        assert target["monetization"]["venture_tags"] == ["subscriptions"]
+
 
 class TestJarvisCLI:
     def test_validate_command(self):
@@ -354,6 +369,70 @@ class TestJarvisCLI:
         )
         assert result.exit_code == 1
         assert "Managed target not found" in result.output
+
+    def test_bootstrap_target_command(self):
+        from main import cli
+
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            [
+                "jarvis",
+                "bootstrap-target",
+                "--repo",
+                "lippytm/new-venture",
+                "--lane",
+                "commerce",
+                "--venture-tag",
+                "subscriptions",
+            ],
+        )
+        assert result.exit_code == 0
+        assert "new-venture" in result.output
+        assert "commerce" in result.output
+
+    @patch("agents.base_agent.OpenAI")
+    def test_monetize_command_with_template(self, mock_openai_cls):
+        from main import cli
+
+        mock_openai_cls.return_value = MagicMock()
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            [
+                "jarvis",
+                "monetize",
+                "--repo",
+                "lippytm/new-venture",
+                "--use-template",
+                "--lane",
+                "revenue",
+            ],
+        )
+        assert result.exit_code == 0
+        assert "service packages" in result.output
+
+
+class TestMonetizationAgent:
+    @patch("agents.base_agent.OpenAI")
+    def test_run_returns_monetization_plan(self, mock_openai_cls):
+        mock_openai_cls.return_value = MagicMock()
+        from agents.monetization_agent import MonetizationAgent
+
+        agent = MonetizationAgent()
+        result = agent.run(
+            {
+                "repo": "owner/repo",
+                "lane": "commerce",
+                "maturity": "growth",
+                "capabilities": ["langchain", "ollama"],
+                "venture_tags": ["subscriptions"],
+            }
+        )
+
+        assert result["status"] == "ok"
+        assert result["value_role"] == "direct"
+        assert "subscriptions" in result["recommended_models"]
 
 
 # ---------------------------------------------------------------------------

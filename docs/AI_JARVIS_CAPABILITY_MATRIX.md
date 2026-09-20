@@ -43,7 +43,19 @@ The current allowed licenses and exclusion rules are maintained in `/home/runner
 - `Chatlippytm.ai.Bots` owns orchestration policy, validation, rollout planning, and swarm integration.
 - Managed assistant repositories must be listed in `/home/runner/work/Chatlippytm.ai.Bots/Chatlippytm.ai.Bots/config/config.yaml` under `repositories.targets`.
 - Per-repo module enablement lives under `jarvis.managed_targets` in the same config file.
+- The shared multi-repo starter profile lives under `jarvis.default_target_template` so any repo can inherit the same approved module stack.
+- Monetization metadata lives with each target so business lanes, venture tags, and maturity can be reused across all ventures.
 - The registry of approved capabilities lives in `/home/runner/work/Chatlippytm.ai.Bots/Chatlippytm.ai.Bots/config/jarvis_registry.yaml`.
+
+## Multi-repo monetization workflow
+
+Use the shared template when bringing Jarvis capabilities into a new repo:
+
+1. Generate a target entry with `python main.py jarvis bootstrap-target --repo owner/repo --lane commerce`.
+2. Add the repo to `repositories.targets` and paste the generated target into `jarvis.managed_targets`.
+3. Run `python main.py jarvis plan --repo owner/repo` to confirm the enabled and planned module stack.
+4. Run `python main.py jarvis monetize --repo owner/repo` to map the selected capabilities into monetization models for that venture.
+5. Promote the repo through phases as its business maturity increases.
 
 ## CLI and workflow entry points
 
@@ -54,6 +66,8 @@ python main.py jarvis policy
 python main.py jarvis inventory
 python main.py jarvis targets
 python main.py jarvis plan --repo lippytm/Chatlippytm.ai.Bots
+python main.py jarvis bootstrap-target --repo lippytm/venture-repo --lane product --venture-tag white-label
+python main.py jarvis monetize --repo lippytm/venture-repo --use-template --lane commerce
 python main.py jarvis validate
 ```
 

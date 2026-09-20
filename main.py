@@ -78,6 +78,7 @@ def swarm_cmd(repos: str, agents: str, workers: int, output: str | None) -> None
     from agents import (
         CodeReviewAgent,
         IssueTriageAgent,
+        MonetizationAgent,
         RepoScannerAgent,
         SecurityAgent,
         TrainerAgent,
@@ -94,6 +95,7 @@ def swarm_cmd(repos: str, agents: str, workers: int, output: str | None) -> None
         "TrainerAgent": TrainerAgent,
         "WorkshopAgent": WorkshopAgent,
         "SandboxAgent": SandboxAgent,
+        "MonetizationAgent": MonetizationAgent,
     }
 
     selected = [a.strip() for a in agents.split(",") if a.strip()]
@@ -482,6 +484,9 @@ def jarvis_targets_cmd(output_format: str) -> None:
                         {
                             "repo": target.repo,
                             "role": target.role,
+                            "monetization_lane": target.monetization_lane,
+                            "monetization_maturity": target.monetization_maturity,
+                            "venture_tags": target.venture_tags,
                             "enabled_modules": target.enabled_modules,
                             "planned_modules": target.planned_modules,
                             "phases": target.phases,
@@ -495,12 +500,14 @@ def jarvis_targets_cmd(output_format: str) -> None:
     table = Table(title="Jarvis Managed Targets", show_lines=True)
     table.add_column("Repo", style="cyan")
     table.add_column("Role")
+    table.add_column("Lane")
     table.add_column("Enabled Modules")
     table.add_column("Planned Modules")
     for target in targets:
             table.add_row(
                 target.repo,
                 target.role,
+                target.monetization_lane,
                 ", ".join(target.enabled_modules) or "-",
                 ", ".join(target.planned_modules) or "-",
             )
@@ -510,6 +517,15 @@ def jarvis_targets_cmd(output_format: str) -> None:
 @jarvis_group.command("plan")
 @click.option("--repo", required=True, help="Managed target repo to plan.")
 @click.option("--phase", default=None, help="Optional phase filter.")
+@click.option("--use-template", is_flag=True, default=False, help="Allow fallback to the default target template.")
+@click.option("--lane", default=None, help="Override monetization lane when using the template.")
+@click.option("--maturity", default=None, help="Override monetization maturity when using the template.")
+@click.option(
+    "--venture-tag",
+    "venture_tags",
+    multiple=True,
+    help="Repeatable venture tag override when using the template.",
+)
 @click.option(
     "--format",
     "output_format",
@@ -522,6 +538,10 @@ def jarvis_targets_cmd(output_format: str) -> None:
 def jarvis_plan_cmd(
     repo: str,
     phase: str | None,
+    use_template: bool,
+    lane: str | None,
+    maturity: str | None,
+    venture_tags: tuple[str, ...],
     output_format: str,
     output: str | None,
 ) -> None:
@@ -529,7 +549,15 @@ def jarvis_plan_cmd(
     from jarvis_hub import build_target_plan, load_hub_config
 
     try:
-            plan = build_target_plan(load_hub_config(), repo=repo, phase=phase)
+            plan = build_target_plan(
+                load_hub_config(),
+                repo=repo,
+                phase=phase,
+                use_template=use_template,
+                lane=lane,
+                maturity=maturity,
+                venture_tags=list(venture_tags) if venture_tags else None,
+            )
     except ValueError as exc:
             console.print(f"[red]{exc}[/red]")
             sys.exit(1)
@@ -546,6 +574,9 @@ def jarvis_plan_cmd(
                 f"Repo              : {plan['repo']}\n"
                 f"Role              : {plan['role']}\n"
                 f"Phase filter      : {plan['phase_filter'] or 'all'}\n"
+                f"Monetization lane : {plan['monetization']['lane']}\n"
+                f"Maturity          : {plan['monetization']['maturity']}\n"
+                f"Venture tags      : {', '.join(plan['monetization']['venture_tags']) or '-'}\n"
                 f"Enabled modules   : {enabled}\n"
                 f"Planned modules   : {planned}\n"
                 f"Covered categories: {', '.join(plan['covered_categories']) or '-'}\n"
@@ -569,6 +600,90 @@ def jarvis_validate_cmd() -> None:
             sys.exit(1)
 
     console.print("[green]✓ Jarvis capability registry is valid.[/green]")
+
+
+@jarvis_group.command("bootstrap-target")
+@click.option("--repo", required=True, help="Repository to bootstrap.")
+@click.option("--lane", default="hub", show_default=True, help="Monetization lane.")
+@click.option("--maturity", default="prototype", show_default=True, help="Monetization maturity.")
+@click.option(
+    "--venture-tag",
+    "venture_tags",
+    multiple=True,
+    help="Repeatable venture tag to include in the generated target entry.",
+)
+def jarvis_bootstrap_target_cmd(
+    repo: str,
+    lane: str,
+    maturity: str,
+    venture_tags: tuple[str, ...],
+) -> None:
+    """Generate a reusable managed-target template for any repository."""
+    from jarvis_hub import build_target_template, load_hub_config
+
+    payload = build_target_template(
+        load_hub_config(),
+        repo=repo,
+        lane=lane,
+        maturity=maturity,
+        venture_tags=list(venture_tags) if venture_tags else None,
+    )
+    _emit_output(payload, None)
+
+
+@jarvis_group.command("monetize")
+@click.option("--repo", required=True, help="Repository to monetize.")
+@click.option("--phase", default=None, help="Optional phase filter.")
+@click.option("--use-template", is_flag=True, default=False, help="Allow fallback to the default target template.")
+@click.option("--lane", default=None, help="Override monetization lane.")
+@click.option("--maturity", default=None, help="Override monetization maturity.")
+@click.option(
+    "--venture-tag",
+    "venture_tags",
+    multiple=True,
+    help="Repeatable venture tag override.",
+)
+def jarvis_monetize_cmd(
+    repo: str,
+    phase: str | None,
+    use_template: bool,
+    lane: str | None,
+    maturity: str | None,
+    venture_tags: tuple[str, ...],
+) -> None:
+    """Map a repository's Jarvis modules to monetization options."""
+    from agents.monetization_agent import MonetizationAgent
+    from jarvis_hub import build_target_plan, load_hub_config
+
+    try:
+        plan = build_target_plan(
+            load_hub_config(),
+            repo=repo,
+            phase=phase,
+            use_template=use_template,
+            lane=lane,
+            maturity=maturity,
+            venture_tags=list(venture_tags) if venture_tags else None,
+        )
+    except ValueError as exc:
+        console.print(f"[red]{exc}[/red]")
+        sys.exit(1)
+
+    capabilities = [item["id"] for item in plan["enabled_modules"] + plan["planned_modules"]]
+    agent = MonetizationAgent()
+    result = agent.run(
+        {
+            "repo": repo,
+            "lane": plan["monetization"]["lane"],
+            "maturity": plan["monetization"]["maturity"],
+            "capabilities": capabilities,
+            "venture_tags": plan["monetization"]["venture_tags"],
+        }
+    )
+    if result.get("status") == "error":
+        console.print(f"[red]{result.get('message', 'Monetization planning failed.')}[/red]")
+        sys.exit(1)
+    console.print_json(json.dumps(result))
 
 
 # ---------------------------------------------------------------------------

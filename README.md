@@ -30,6 +30,7 @@ This repository is the control plane for Jarvis-style assistant capabilities acr
 - Approved capabilities are curated in `/home/runner/work/Chatlippytm.ai.Bots/Chatlippytm.ai.Bots/config/jarvis_registry.yaml`
 - Managed target repositories and enabled modules are configured in `/home/runner/work/Chatlippytm.ai.Bots/Chatlippytm.ai.Bots/config/config.yaml`
 - The canonical capability matrix lives in `/home/runner/work/Chatlippytm.ai.Bots/Chatlippytm.ai.Bots/docs/AI_JARVIS_CAPABILITY_MATRIX.md`
+- Multi-repo defaults and monetization lanes let you reuse the same Jarvis hub across your business-of-businesses ventures
 
 Use the CLI to inspect and validate the hub:
 
@@ -38,6 +39,8 @@ python main.py jarvis policy
 python main.py jarvis inventory
 python main.py jarvis targets
 python main.py jarvis plan --repo lippytm/Chatlippytm.ai.Bots
+python main.py jarvis bootstrap-target --repo lippytm/your-next-repo --lane commerce --venture-tag subscriptions
+python main.py jarvis monetize --repo lippytm/your-next-repo --use-template --lane revenue
 python main.py jarvis validate
 ```
 
