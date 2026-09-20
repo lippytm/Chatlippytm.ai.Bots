@@ -336,8 +336,254 @@ def workshop_cmd(
 
 
 # ---------------------------------------------------------------------------
+# jarvis command group
+# ---------------------------------------------------------------------------
+
+
+@cli.group("jarvis")
+def jarvis_group() -> None:
+    """Inspect and validate the Jarvis open-source capability hub."""
+
+
+@jarvis_group.command("policy")
+def jarvis_policy_cmd() -> None:
+    """Print the Jarvis open-source policy definition."""
+    from jarvis_hub import load_hub_config
+
+    hub = load_hub_config()
+    policy = hub["registry"].get("policy", {})
+    console.print(
+            Panel.fit(
+                f"{policy.get('definition', 'No policy definition found.')}\n\n"
+                f"Allowed licenses: {', '.join(policy.get('allowed_licenses', []))}\n"
+                f"Categories      : {', '.join(policy.get('categories', []))}\n"
+                f"Excluded if     : {', '.join(policy.get('excluded_conditions', []))}",
+                title="🧭 Jarvis Open-Source Policy",
+            )
+    )
+
+
+@jarvis_group.command("inventory")
+@click.option(
+    "--category",
+    default=None,
+    help="Filter inventory by category.",
+)
+@click.option(
+    "--phase",
+    default=None,
+    help="Filter inventory by rollout phase.",
+)
+@click.option(
+    "--strategy",
+    default=None,
+    help="Filter inventory by integration strategy.",
+)
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "json"], case_sensitive=False),
+    default="table",
+    show_default=True,
+    help="Output format.",
+)
+@click.option("--output", default=None, help="Write inventory output to this file.")
+def jarvis_inventory_cmd(
+    category: str | None,
+    phase: str | None,
+    strategy: str | None,
+    output_format: str,
+    output: str | None,
+) -> None:
+    """List approved Jarvis capabilities from the registry."""
+    from jarvis_hub import capabilities_from_registry, filter_capabilities, load_hub_config
+
+    hub = load_hub_config()
+    capabilities = filter_capabilities(
+            capabilities_from_registry(hub["registry"]),
+            category=category,
+            phase=phase,
+            strategy=strategy,
+    )
+
+    if output_format == "json":
+            payload = [
+                {
+                    "id": cap.id,
+                    "name": cap.name,
+                    "category": cap.category,
+                    "phase": cap.phase,
+                    "license": cap.license,
+                    "maturity": cap.maturity,
+                    "integration_strategy": cap.integration_strategy,
+                    "owner_repo": cap.owner_repo,
+                }
+                for cap in capabilities
+            ]
+            _emit_output(payload, output)
+            return
+
+    table = Table(title="Jarvis Capability Inventory", show_lines=True)
+    table.add_column("ID", style="cyan")
+    table.add_column("Category")
+    table.add_column("Phase")
+    table.add_column("License")
+    table.add_column("Strategy")
+    table.add_column("Owner Repo")
+    for cap in capabilities:
+            table.add_row(
+                cap.id,
+                cap.category,
+                cap.phase,
+                cap.license,
+                cap.integration_strategy,
+                cap.owner_repo,
+            )
+    console.print(table)
+    if output:
+            _emit_output(
+                [
+                    {
+                        "id": cap.id,
+                        "name": cap.name,
+                        "category": cap.category,
+                        "phase": cap.phase,
+                        "license": cap.license,
+                        "maturity": cap.maturity,
+                        "integration_strategy": cap.integration_strategy,
+                        "owner_repo": cap.owner_repo,
+                    }
+                    for cap in capabilities
+                ],
+                output,
+            )
+
+
+@jarvis_group.command("targets")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "json"], case_sensitive=False),
+    default="table",
+    show_default=True,
+    help="Output format.",
+)
+def jarvis_targets_cmd(output_format: str) -> None:
+    """List managed Jarvis target repositories and enabled modules."""
+    from jarvis_hub import load_hub_config, targets_from_config
+
+    hub = load_hub_config()
+    targets = targets_from_config(hub["config"])
+
+    if output_format == "json":
+            console.print_json(
+                json.dumps(
+                    [
+                        {
+                            "repo": target.repo,
+                            "role": target.role,
+                            "enabled_modules": target.enabled_modules,
+                            "planned_modules": target.planned_modules,
+                            "phases": target.phases,
+                        }
+                        for target in targets
+                    ]
+                )
+            )
+            return
+
+    table = Table(title="Jarvis Managed Targets", show_lines=True)
+    table.add_column("Repo", style="cyan")
+    table.add_column("Role")
+    table.add_column("Enabled Modules")
+    table.add_column("Planned Modules")
+    for target in targets:
+            table.add_row(
+                target.repo,
+                target.role,
+                ", ".join(target.enabled_modules) or "-",
+                ", ".join(target.planned_modules) or "-",
+            )
+    console.print(table)
+
+
+@jarvis_group.command("plan")
+@click.option("--repo", required=True, help="Managed target repo to plan.")
+@click.option("--phase", default=None, help="Optional phase filter.")
+@click.option(
+    "--format",
+    "output_format",
+    type=click.Choice(["table", "json"], case_sensitive=False),
+    default="table",
+    show_default=True,
+    help="Output format.",
+)
+@click.option("--output", default=None, help="Write plan output to this file.")
+def jarvis_plan_cmd(
+    repo: str,
+    phase: str | None,
+    output_format: str,
+    output: str | None,
+) -> None:
+    """Build the approved Jarvis rollout plan for a managed repository."""
+    from jarvis_hub import build_target_plan, load_hub_config
+
+    try:
+            plan = build_target_plan(load_hub_config(), repo=repo, phase=phase)
+    except ValueError as exc:
+            console.print(f"[red]{exc}[/red]")
+            sys.exit(1)
+
+    if output_format == "json":
+            _emit_output(plan, output)
+            return
+
+    enabled = ", ".join(item["id"] for item in plan["enabled_modules"]) or "-"
+    planned = ", ".join(item["id"] for item in plan["planned_modules"]) or "-"
+    missing = ", ".join(plan["missing_categories"]) or "-"
+    console.print(
+            Panel.fit(
+                f"Repo              : {plan['repo']}\n"
+                f"Role              : {plan['role']}\n"
+                f"Phase filter      : {plan['phase_filter'] or 'all'}\n"
+                f"Enabled modules   : {enabled}\n"
+                f"Planned modules   : {planned}\n"
+                f"Covered categories: {', '.join(plan['covered_categories']) or '-'}\n"
+                f"Missing categories: {missing}",
+                title="🛠️ Jarvis Target Plan",
+            )
+    )
+    if output:
+            _emit_output(plan, output)
+
+
+@jarvis_group.command("validate")
+def jarvis_validate_cmd() -> None:
+    """Validate the Jarvis registry and managed target config."""
+    from jarvis_hub import load_hub_config, validate_hub_definition
+
+    errors = validate_hub_definition(load_hub_config())
+    if errors:
+            for error in errors:
+                console.print(f"[red]✗ {error}[/red]")
+            sys.exit(1)
+
+    console.print("[green]✓ Jarvis capability registry is valid.[/green]")
+
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+def _emit_output(payload: dict | list, output: str | None) -> None:
+    rendered = json.dumps(payload, indent=2)
+    if output:
+            with open(output, "w", encoding="utf-8") as fh:
+                fh.write(rendered)
+            console.print(f"[green]Results written to {output}[/green]")
+            return
+    console.print_json(rendered)
 
 
 def _print_results_table(results: list[dict]) -> None:

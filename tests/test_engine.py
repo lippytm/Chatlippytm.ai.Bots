@@ -12,6 +12,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from click.testing import CliRunner
 
 
 # ---------------------------------------------------------------------------
@@ -289,6 +290,70 @@ class TestTrainingPipeline:
         assert count == 1
         assert merged is not None
         assert merged.exists()
+
+
+# ---------------------------------------------------------------------------
+# Jarvis capability hub
+# ---------------------------------------------------------------------------
+
+
+class TestJarvisHub:
+    def test_validate_hub_definition(self):
+        from jarvis_hub import load_hub_config, validate_hub_definition
+
+        errors = validate_hub_definition(load_hub_config())
+        assert errors == []
+
+    def test_build_target_plan(self):
+        from jarvis_hub import build_target_plan, load_hub_config
+
+        plan = build_target_plan(load_hub_config(), repo="lippytm/Chatlippytm.ai.Bots")
+        assert plan["repo"] == "lippytm/Chatlippytm.ai.Bots"
+        assert any(item["id"] == "langchain" for item in plan["enabled_modules"])
+        assert any(item["id"] == "home-assistant" for item in plan["planned_modules"])
+
+    def test_build_target_plan_phase_filter(self):
+        from jarvis_hub import build_target_plan, load_hub_config
+
+        plan = build_target_plan(
+            load_hub_config(),
+            repo="lippytm/Chatlippytm.ai.Bots",
+            phase="phase_1",
+        )
+        assert {item["phase"] for item in plan["enabled_modules"]} == {"phase_1"}
+        assert plan["planned_modules"] == []
+
+
+class TestJarvisCLI:
+    def test_validate_command(self):
+        from main import cli
+
+        runner = CliRunner()
+        result = runner.invoke(cli, ["jarvis", "validate"])
+        assert result.exit_code == 0
+        assert "Jarvis capability registry is valid" in result.output
+
+    def test_inventory_json_command(self):
+        from main import cli
+
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            ["jarvis", "inventory", "--category", "agents", "--format", "json"],
+        )
+        assert result.exit_code == 0
+        assert "langchain" in result.output
+
+    def test_plan_unknown_repo_fails(self):
+        from main import cli
+
+        runner = CliRunner()
+        result = runner.invoke(
+            cli,
+            ["jarvis", "plan", "--repo", "lippytm/unknown-repo"],
+        )
+        assert result.exit_code == 1
+        assert "Managed target not found" in result.output
 
 
 # ---------------------------------------------------------------------------
