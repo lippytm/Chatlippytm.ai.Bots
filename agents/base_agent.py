@@ -175,6 +175,8 @@ class BaseAgent(ABC):
             for block in content_blocks
             if isinstance(block, dict) and block.get("type") == "text"
         )
+        if not content:
+            raise ValueError("Anthropic response did not contain any text content")
         logger.debug("[%s] Received Anthropic response (%d chars)", self.name, len(content))
         return content
 

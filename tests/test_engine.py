@@ -152,6 +152,25 @@ class TestBaseAgent:
         assert agent.provider == "anthropic"
         mock_post.assert_called_once()
 
+    @patch.dict(os.environ, {"ANTHROPIC_API_KEY": "test-key"}, clear=False)
+    @patch("agents.base_agent.requests.post")
+    def test_anthropic_http_error_retries(self, mock_post):
+        mock_response = MagicMock()
+        mock_response.raise_for_status.side_effect = RuntimeError("boom")
+        mock_post.return_value = mock_response
+
+        from agents.base_agent import BaseAgent
+
+        class _A(BaseAgent):
+            name = "A"
+            def run(self, ctx):
+                return self._base_result()
+
+        agent = _A(model="claude-3-5-sonnet-latest")
+        with pytest.raises(RuntimeError, match="boom"):
+            agent.chat("system", "user")
+        assert mock_post.call_count == 3
+
 
 # ---------------------------------------------------------------------------
 # CodeReviewAgent
@@ -750,3 +769,13 @@ class TestJarvisAssistantAgent:
         agent = self._make_agent()
         result = agent.run({})
         assert result["status"] == "error"
+
+    def test_run_includes_optional_context_in_system_prompt(self):
+        agent = self._make_agent()
+        with patch.object(agent, "chat", return_value="contextual reply") as mock_chat:
+            result = agent.run({"message": "Hello Jarvis", "context": "repo notes"})
+
+        assert result["status"] == "ok"
+        system_prompt, user_message = mock_chat.call_args.args
+        assert "Additional context:\nrepo notes" in system_prompt
+        assert user_message == "Hello Jarvis"
