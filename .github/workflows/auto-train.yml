@@ -67,6 +67,12 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo "OPENAI_API_KEY is not configured; skipping paid auto-training."
+            mkdir -p training/data training/reports
+            printf "%s\n" "Skipped: OPENAI_API_KEY is not configured." > training/reports/skipped.txt
+            exit 0
+          fi
           SUBMIT_FLAG=""
           if [ "${{ github.event.inputs.submit_fine_tune }}" = "true" ]; then
             SUBMIT_FLAG="--submit"
