@@ -37,6 +37,11 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo "OPENAI_API_KEY is not configured; skipping AI health analysis."
+            printf "%s\n" "[]" > /tmp/health_results.json
+            exit 0
+          fi
           REPOS="${{ github.event.inputs.repos }}"
           if [ -z "$REPOS" ]; then
             REPOS="${{ github.repository }}"
