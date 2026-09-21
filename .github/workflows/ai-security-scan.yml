@@ -35,6 +35,11 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo "OPENAI_API_KEY is not configured; recording a skipped AI scan."
+            printf '%s\n' 'AI-assisted scan skipped: OPENAI_API_KEY is not configured. No security conclusion was produced.' > /tmp/security_report.md
+            exit 0
+          fi
           python - <<'EOF'
           import sys
           from agents import SecurityAgent
